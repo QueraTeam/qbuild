@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+import glob
+import os
+import shutil
+
+import sh
+from color import Color, cprint
+
+
+class Builder:
+    HIDE_BEGIN = '_q_hide_from_users_begin'
+    HIDE_END = '_q_hide_from_users_end'
+
+    def __init__(self):
+        self.BASE_DIR = os.getcwd()
+        self.SRC_DIR = os.path.join(self.BASE_DIR, 'src')
+        self.DIST = os.path.join(self.BASE_DIR, 'dist')
+        self.BASE_DIR_2 = os.path.join(self.DIST, '_copy__project')
+        self.SRC_DIR_2 = os.path.join(self.BASE_DIR_2, 'src')
+        self.DIST_INITIAL = os.path.join(self.BASE_DIR, 'dist', 'initial')
+        self.DIST_TEST = os.path.join(self.BASE_DIR, 'dist', 'test')
+        self.DIST_MODEL_SOLUTION = os.path.join(self.BASE_DIR, 'dist', 'model_solution')
+
+    def get_unignored_git_files(self, path):
+        base, dirs, files = next(os.walk(path))
+        for f in files:
+            if f == '.gitignore':
+                continue
+            ff = os.path.join(base, f)
+            try:
+                sh.git('check-ignore', '--no-index', '-q', ff, _cwd=self.BASE_DIR)
+            except sh.ErrorReturnCode_1:
+                yield os.path.relpath(ff, start=self.BASE_DIR)
+        for d in dirs:
+            if d == '.git':
+                continue
+            dd = os.path.join(base, d)
+            try:
+                sh.git('check-ignore', '--no-index', '-q', dd, _cwd=self.BASE_DIR)
+            except sh.ErrorReturnCode_1:
+                yield from self.get_unignored_git_files(dd)
+
+    def hide_comments(self, path):
+        items = glob.glob(os.path.join(path, '**'), recursive=True)
+        for item in items:
+            if not os.path.isfile(item):
+                continue
+            with open(item) as fp:
+                # FIXME it reads file at once. what happens for large files?
+                try:
+                    lines = fp.readlines()
+                except UnicodeDecodeError:
+                    # file is not text
+                    continue
+            new_content = ''
+            hiding = False
+            for line in lines:
+                if hiding:
+                    if self.HIDE_END in line:
+                        hiding = False
+                else:
+                    if self.HIDE_BEGIN in line:
+                        hiding = True
+                    else:
+                        new_content += line
+            with open(item, 'w') as fp:
+                fp.write(new_content)
+
+    def hide_initial(self, path):
+        items = glob.glob(os.path.join(path, '**'), recursive=True)
+        items_to_hide = []
+        for item in items:
+            if item + '.initial' in items:
+                items_to_hide.append(item)
+        for item in items_to_hide:
+            os.remove(item)
+            os.rename(item + '.initial', item)
+
+    def delete_initial(self, path):
+        # FIXME duplicate code (with hide_initial)
+        items = glob.glob(os.path.join(path, '**'), recursive=True)
+        items_to_hide = []
+        for item in items:
+            if item + '.initial' in items:
+                items_to_hide.append(item)
+        for item in items_to_hide:
+            os.remove(item + '.initial')
+
+    def hide_ignorefile(self, path, ignorefile):
+        try:
+            os.remove(os.path.join(path, '.gitignore'))
+        except FileNotFoundError:
+            pass
+        os.rename(os.path.join(path, ignorefile), os.path.join(path, '.gitignore'))
+        sh.git.init(_cwd=path)
+        sh.git.add('.', _cwd=path)
+        sh.git.clean('-xdf', _cwd=path)
+        shutil.rmtree(os.path.join(path, '.git'))
+        os.remove(os.path.join(path, '.gitignore'))
+
+    def main(self):
+        if not os.path.exists(self.SRC_DIR):
+            cprint('"src" not found!', color=Color.RED)
+            return
+        if not os.path.exists(os.path.join(self.BASE_DIR, 'tester_config.json')):
+            cprint('"tester_config.json" not found!', color=Color.RED)
+            return
+        if not os.path.exists(os.path.join(self.BASE_DIR, 'valid_files')):
+            cprint('"valid_files" not found!', color=Color.RED)
+            return
+        if not os.path.exists(os.path.join(self.BASE_DIR, '.git')):
+            cprint('This is not a git repo!', color=Color.RED)
+            return
+
+        # Copy whole project
+        if os.path.exists(self.DIST):
+            shutil.rmtree(self.DIST)
+        os.mkdir(self.DIST)
+        if os.path.exists(self.BASE_DIR_2):
+            shutil.rmtree(self.BASE_DIR_2)
+        os.mkdir(self.BASE_DIR_2)
+
+        # pprint(list(self.get_unignored_git_files(self.BASE_DIR)))
+        # return
+        for item in list(self.get_unignored_git_files(self.BASE_DIR)):
+            d = os.path.dirname(os.path.join(self.BASE_DIR_2, item))
+            if not os.path.exists(d):
+                os.makedirs(d)
+            shutil.copy2(os.path.join(self.BASE_DIR, item), d)
+
+        shutil.copytree(self.SRC_DIR_2, self.DIST_INITIAL)
+        shutil.copytree(self.SRC_DIR_2, self.DIST_TEST)
+        shutil.copytree(self.SRC_DIR_2, self.DIST_MODEL_SOLUTION)
+
+        # initial
+        self.hide_initial(self.DIST_INITIAL)  # must be first
+        self.hide_ignorefile(self.DIST_INITIAL, '.qtest')
+        self.hide_ignorefile(self.DIST_INITIAL, '.qhide')
+        self.hide_comments(self.DIST_INITIAL)
+
+        # model_solution
+        self.delete_initial(self.DIST_MODEL_SOLUTION)  # must be first
+        self.hide_ignorefile(self.DIST_MODEL_SOLUTION, '.qtest')
+
+        # test
+        self.hide_initial(self.DIST_TEST)  # must be first
+        self.hide_ignorefile(self.DIST_TEST, '.qhide')
+        self.hide_comments(self.DIST_TEST)
+
+        for i in ['.qhide', '.qtest']:
+            try:
+                os.remove(os.path.join(self.DIST_INITIAL, i))
+            except FileNotFoundError:
+                pass
+            try:
+                os.remove(os.path.join(self.DIST_MODEL_SOLUTION, i))
+            except FileNotFoundError:
+                pass
+            try:
+                os.remove(os.path.join(self.DIST_TEST, i))
+            except FileNotFoundError:
+                pass
+
+        shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), self.DIST_TEST)
+        shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), self.DIST_TEST)
+
+        shutil.rmtree(self.BASE_DIR_2)
+
+        cprint('Build was successful!', color=Color.GREEN)
+
+
+if __name__ == "__main__":
+    Builder().main()
