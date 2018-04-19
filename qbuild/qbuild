@@ -166,6 +166,10 @@ class Builder:
 
         shutil.rmtree(self.BASE_DIR_2)
 
+        shutil.make_archive(os.path.join(self.DIST, 'test'), 'zip', self.DIST_TEST)
+        shutil.make_archive(os.path.join(self.DIST, 'initial'), 'zip', self.DIST_INITIAL)
+        shutil.make_archive(os.path.join(self.DIST, 'model_solution'), 'zip', self.DIST_MODEL_SOLUTION)
+
         cprint('Build was successful!', color=Color.GREEN)
 
 
