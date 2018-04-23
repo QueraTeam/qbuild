@@ -87,6 +87,8 @@ class Builder:
             os.remove(item + '.initial')
 
     def hide_ignorefile(self, path, ignorefile):
+        if not os.path.exists(os.path.join(path, ignorefile)):
+            return
         try:
             os.remove(os.path.join(path, '.gitignore'))
         except FileNotFoundError:
