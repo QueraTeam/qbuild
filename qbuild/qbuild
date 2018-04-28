@@ -4,20 +4,23 @@ import os
 import shutil
 
 import sh
-from qbuild.color import Color, cprint
+from qbuild.color_print import Color, cprint
 
 
 class Builder:
     HIDE_BEGIN = '_q_hide_from_users_begin'
     HIDE_END = '_q_hide_from_users_end'
 
-    def __init__(self):
-        self.BASE_DIR = os.getcwd()
+    def __init__(self, base_dir):
+        # Creating directory paths...
+        self.BASE_DIR = base_dir
         self.SLUG = os.path.basename(self.BASE_DIR)
         self.SRC_DIR = os.path.join(self.BASE_DIR, 'src')
+
         self.DIST = os.path.join(self.BASE_DIR, 'dist')
         self.BASE_DIR_2 = os.path.join(self.DIST, '_copy__project')
         self.SRC_DIR_2 = os.path.join(self.BASE_DIR_2, 'src')
+
         self.DIST_INITIAL = os.path.join(self.BASE_DIR, 'dist', 'initial')
         self.DIST_TEST = os.path.join(self.BASE_DIR, 'dist', 'test')
         self.DIST_MODEL_SOLUTION = os.path.join(self.BASE_DIR, 'dist', 'model_solution')
@@ -102,20 +105,21 @@ class Builder:
         os.remove(os.path.join(path, '.gitignore'))
 
     def main(self):
-        if not os.path.exists(self.SRC_DIR):
-            cprint('"src" not found!', color=Color.RED)
+        # initial checks
+        if not os.path.isdir(self.SRC_DIR):
+            cprint('Directory "src" not found!', color=Color.RED)
             return
-        if not os.path.exists(os.path.join(self.BASE_DIR, 'tester_config.json')):
+        if not os.path.isfile(os.path.join(self.BASE_DIR, 'tester_config.json')):
             cprint('"tester_config.json" not found!', color=Color.RED)
             return
-        if not os.path.exists(os.path.join(self.BASE_DIR, 'valid_files')):
+        if not os.path.isfile(os.path.join(self.BASE_DIR, 'valid_files')):
             cprint('"valid_files" not found!', color=Color.RED)
             return
-        if not os.path.exists(os.path.join(self.BASE_DIR, '.git')):
+        if not os.path.isdir(os.path.join(self.BASE_DIR, '.git')):
             cprint('This is not a git repo!', color=Color.RED)
             return
 
-        # Copy whole project
+        # copy whole project
         if os.path.exists(self.DIST):
             shutil.rmtree(self.DIST)
         os.mkdir(self.DIST)
@@ -177,4 +181,4 @@ class Builder:
 
 
 if __name__ == "__main__":
-    Builder().main()
+    Builder(os.getcwd()).main()
