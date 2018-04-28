@@ -13,6 +13,7 @@ class Builder:
 
     def __init__(self):
         self.BASE_DIR = os.getcwd()
+        self.SLUG = os.path.basename(self.BASE_DIR)
         self.SRC_DIR = os.path.join(self.BASE_DIR, 'src')
         self.DIST = os.path.join(self.BASE_DIR, 'dist')
         self.BASE_DIR_2 = os.path.join(self.DIST, '_copy__project')
@@ -169,7 +170,7 @@ class Builder:
         shutil.rmtree(self.BASE_DIR_2)
 
         shutil.make_archive(os.path.join(self.DIST, 'test'), 'zip', self.DIST_TEST)
-        shutil.make_archive(os.path.join(self.DIST, 'initial'), 'zip', self.DIST_INITIAL)
+        shutil.make_archive(os.path.join(self.DIST, '{}_initial'.format(self.SLUG)), 'zip', self.DIST_INITIAL)
         shutil.make_archive(os.path.join(self.DIST, 'model_solution'), 'zip', self.DIST_MODEL_SOLUTION)
 
         cprint('Build was successful!', color=Color.GREEN)
