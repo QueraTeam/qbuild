@@ -4,7 +4,7 @@ import os
 import shutil
 
 import sh
-from color import Color, cprint
+from qbuild.color import Color, cprint
 
 
 class Builder:
