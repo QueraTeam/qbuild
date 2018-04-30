@@ -16,16 +16,17 @@ def is_inside_git_repo(path):
         return False
 
 
-def _get_unignored_files(base_dir, path):
+def _list_unignored_files(base_dir, exclude_dirs, path):
     base, dirs, files = next(os.walk(path))
     for f in files:
-        if f == '.gitignore':
-            continue
         ff = os.path.join(base, f)
-        try:
-            sh.git('check-ignore', '--no-index', '-q', ff, _cwd=base_dir)
-        except sh.ErrorReturnCode_1:
-            yield os.path.relpath(ff, start=base_dir)
+        if f == '.gitignore':
+            yield ff
+        else:
+            try:
+                sh.git('check-ignore', '--no-index', '-q', ff, _cwd=base_dir)
+            except sh.ErrorReturnCode_1:
+                yield ff
     for d in dirs:
         if d == '.git':
             continue
@@ -33,14 +34,36 @@ def _get_unignored_files(base_dir, path):
         try:
             sh.git('check-ignore', '--no-index', '-q', dd, _cwd=base_dir)
         except sh.ErrorReturnCode_1:
-            yield from _get_unignored_files(base_dir, dd)
+            if not exclude_dirs:
+                yield dd
+            yield from _list_unignored_files(base_dir, exclude_dirs, dd)
 
 
-def get_unignored_files(path):
+def _list_all_files(path, exclude_dirs):
+    for base, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            yield os.path.join(base, filename)
+        if not exclude_dirs:
+            for dirname in dirnames:
+                yield os.path.join(base, dirname)
+
+
+def ls_recursive(path, relative=False, exclude_gitignore=False, exclude_dirs=False):
     """
-    Returns a list of file paths (relative to `path`) that are inside `path` and are not ignored by git (.gitignore)
-    :param path: path to a directory inside a git repo
+    :param path: The path to list files (or dirs) inside it
+    :param relative: If True, returned paths will be relative to `path`
+    :param exclude_gitignore:  If True, only paths that are not ignored by .gitignore files will be returned.
+                               In this case, `path` must be inside a git repo.
+    :param exclude_dirs: If True, only files will be returned
+    :return: A list of paths inside `path`
     """
-    if not is_inside_git_repo(path):
-        raise NotGitRepoException
-    return list(_get_unignored_files(path, path))
+    if exclude_gitignore:
+        if not is_inside_git_repo(path):
+            raise NotGitRepoException
+        absolute_paths = list(_list_unignored_files(path, exclude_dirs, path))
+    else:
+        absolute_paths = list(_list_all_files(path, exclude_dirs))
+    if relative:
+        return [os.path.relpath(i, start=path) for i in absolute_paths]
+    else:
+        return absolute_paths

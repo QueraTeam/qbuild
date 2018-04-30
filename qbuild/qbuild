@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-import glob
 import os
 import shutil
 
 import sh
 
-from qbuild.helpers import get_unignored_files
-from qbuild.color_print import Color, cprint
+from color_print import Color, cprint
+from helpers import ls_recursive
 
 
 class Builder:
@@ -38,13 +37,11 @@ class Builder:
         self.SRC_DIR = os.path.join(self.BASE_DIR, 'src')
 
         self.DIST = os.path.join(self.BASE_DIR, 'dist')
-        self.SRC_DIR_2 = os.path.join(self.BASE_DIR, '_copy__src')
+        self.SRC_DIR_2 = os.path.join(self.DIST, '_copy__src')
 
-    def hide_comments(self, path):
-        items = glob.glob(os.path.join(path, '**'), recursive=True)
-        for item in items:
-            if not os.path.isfile(item):
-                continue
+    @staticmethod
+    def hide_comments(path):
+        for item in ls_recursive(path, exclude_dirs=True):
             with open(item) as fp:
                 # FIXME it reads file at once. what happens for large files?
                 try:
@@ -56,37 +53,40 @@ class Builder:
             hiding = False
             for line in lines:
                 if hiding:
-                    if self.HIDE_END in line:
+                    if Builder.HIDE_END in line:
                         hiding = False
                 else:
-                    if self.HIDE_BEGIN in line:
+                    if Builder.HIDE_BEGIN in line:
                         hiding = True
                     else:
                         new_content += line
             with open(item, 'w') as fp:
                 fp.write(new_content)
 
-    def hide_initial(self, path):
-        items = glob.glob(os.path.join(path, '**'), recursive=True)
+    @staticmethod
+    def process_initial(path, action):
+        if action not in ['replace', 'delete']:
+            raise Exception
+        items = ls_recursive(path)
         items_to_hide = []
         for item in items:
             if item + '.initial' in items:
                 items_to_hide.append(item)
         for item in items_to_hide:
-            os.remove(item)
-            os.rename(item + '.initial', item)
+            if action == 'replace':
+                if os.path.isdir(item):
+                    shutil.rmtree(item)
+                else:
+                    os.remove(item)
+                os.rename(item + '.initial', item)
+            elif action == 'delete':
+                if os.path.isdir(item + '.initial'):
+                    shutil.rmtree(item + '.initial')
+                else:
+                    os.remove(item + '.initial')
 
-    def delete_initial(self, path):
-        # FIXME duplicate code (with hide_initial)
-        items = glob.glob(os.path.join(path, '**'), recursive=True)
-        items_to_hide = []
-        for item in items:
-            if item + '.initial' in items:
-                items_to_hide.append(item)
-        for item in items_to_hide:
-            os.remove(item + '.initial')
-
-    def hide_ignorefile(self, path, ignorefile):
+    @staticmethod
+    def hide_ignorefile(path, ignorefile):
         if not os.path.exists(os.path.join(path, ignorefile)):
             return
         try:
@@ -99,6 +99,12 @@ class Builder:
         sh.git.clean('-xdf', _cwd=path)
         shutil.rmtree(os.path.join(path, '.git'))
         os.remove(os.path.join(path, '.gitignore'))
+
+    @staticmethod
+    def delete_gitignore_files(path):
+        for item in ls_recursive(path, exclude_dirs=True):
+            if os.path.basename(item) in ['.gitignore', '.gitkeep']:
+                os.remove(item)
 
     def main(self):
         # initial checks
@@ -122,7 +128,7 @@ class Builder:
         if os.path.exists(self.SRC_DIR_2):
             shutil.rmtree(self.SRC_DIR_2)
         os.mkdir(self.SRC_DIR_2)
-        for item in get_unignored_files(self.SRC_DIR):
+        for item in ls_recursive(self.SRC_DIR, relative=True, exclude_gitignore=True, exclude_dirs=True):
             d = os.path.dirname(os.path.join(self.SRC_DIR_2, item))
             if not os.path.exists(d):
                 os.makedirs(d)
@@ -133,11 +139,11 @@ class Builder:
             path = os.path.join(self.DIST, name)
             shutil.copytree(self.SRC_DIR_2, path)
             if export['hide_solution']:
-                self.hide_initial(path)  # must be first
+                self.process_initial(path, action='replace')  # must be first
                 self.hide_ignorefile(path, '.qhide')
                 self.hide_comments(path)
             else:
-                self.delete_initial(path)  # must be first
+                self.process_initial(path, action='delete')  # must be first
             if export['hide_test']:
                 self.hide_ignorefile(path, '.qtest')
             else:
@@ -148,6 +154,7 @@ class Builder:
                     os.remove(os.path.join(path, i))
                 except FileNotFoundError:
                     pass
+            self.delete_gitignore_files(path)
             shutil.make_archive(path, 'zip', path)
 
         shutil.rmtree(self.SRC_DIR_2)
