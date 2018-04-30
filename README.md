@@ -7,7 +7,7 @@ For installing or updating qbuild, run the following commands:
 ```bash
 git clone git@gitlab.com:codamooz/challenges/qbuild.git
 cd qbuild
-sudo pip install . 
+sudo pip3 install . 
 ```
 
 # Usage
