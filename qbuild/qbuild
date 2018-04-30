@@ -4,12 +4,32 @@ import os
 import shutil
 
 import sh
+
+from qbuild.helpers import get_unignored_files
 from qbuild.color_print import Color, cprint
 
 
 class Builder:
     HIDE_BEGIN = '_q_hide_from_users_begin'
     HIDE_END = '_q_hide_from_users_end'
+
+    EXPORTS = [
+        {
+            'name': '{slug}_initial',
+            'hide_solution': True,
+            'hide_test': True
+        },
+        {
+            'name': 'model_solution',
+            'hide_solution': False,
+            'hide_test': True
+        },
+        {
+            'name': 'test',
+            'hide_solution': True,
+            'hide_test': False
+        }
+    ]
 
     def __init__(self, base_dir):
         # Creating directory paths...
@@ -18,31 +38,7 @@ class Builder:
         self.SRC_DIR = os.path.join(self.BASE_DIR, 'src')
 
         self.DIST = os.path.join(self.BASE_DIR, 'dist')
-        self.BASE_DIR_2 = os.path.join(self.DIST, '_copy__project')
-        self.SRC_DIR_2 = os.path.join(self.BASE_DIR_2, 'src')
-
-        self.DIST_INITIAL = os.path.join(self.BASE_DIR, 'dist', 'initial')
-        self.DIST_TEST = os.path.join(self.BASE_DIR, 'dist', 'test')
-        self.DIST_MODEL_SOLUTION = os.path.join(self.BASE_DIR, 'dist', 'model_solution')
-
-    def get_unignored_git_files(self, path):
-        base, dirs, files = next(os.walk(path))
-        for f in files:
-            if f == '.gitignore':
-                continue
-            ff = os.path.join(base, f)
-            try:
-                sh.git('check-ignore', '--no-index', '-q', ff, _cwd=self.BASE_DIR)
-            except sh.ErrorReturnCode_1:
-                yield os.path.relpath(ff, start=self.BASE_DIR)
-        for d in dirs:
-            if d == '.git':
-                continue
-            dd = os.path.join(base, d)
-            try:
-                sh.git('check-ignore', '--no-index', '-q', dd, _cwd=self.BASE_DIR)
-            except sh.ErrorReturnCode_1:
-                yield from self.get_unignored_git_files(dd)
+        self.SRC_DIR_2 = os.path.join(self.BASE_DIR, '_copy__src')
 
     def hide_comments(self, path):
         items = glob.glob(os.path.join(path, '**'), recursive=True)
@@ -119,63 +115,42 @@ class Builder:
             cprint('This is not a git repo!', color=Color.RED)
             return
 
-        # copy whole project
+        # copy src (except ignored files) to self.SRC_DIR_2 (dist/_copy__src)
         if os.path.exists(self.DIST):
             shutil.rmtree(self.DIST)
         os.mkdir(self.DIST)
-        if os.path.exists(self.BASE_DIR_2):
-            shutil.rmtree(self.BASE_DIR_2)
-        os.mkdir(self.BASE_DIR_2)
-
-        # pprint(list(self.get_unignored_git_files(self.BASE_DIR)))
-        # return
-        for item in list(self.get_unignored_git_files(self.BASE_DIR)):
-            d = os.path.dirname(os.path.join(self.BASE_DIR_2, item))
+        if os.path.exists(self.SRC_DIR_2):
+            shutil.rmtree(self.SRC_DIR_2)
+        os.mkdir(self.SRC_DIR_2)
+        for item in get_unignored_files(self.SRC_DIR):
+            d = os.path.dirname(os.path.join(self.SRC_DIR_2, item))
             if not os.path.exists(d):
                 os.makedirs(d)
-            shutil.copy2(os.path.join(self.BASE_DIR, item), d)
+            shutil.copy2(os.path.join(self.SRC_DIR, item), d)
 
-        shutil.copytree(self.SRC_DIR_2, self.DIST_INITIAL)
-        shutil.copytree(self.SRC_DIR_2, self.DIST_TEST)
-        shutil.copytree(self.SRC_DIR_2, self.DIST_MODEL_SOLUTION)
+        for export in self.EXPORTS:
+            name = export['name'].format(slug=self.SLUG)
+            path = os.path.join(self.DIST, name)
+            shutil.copytree(self.SRC_DIR_2, path)
+            if export['hide_solution']:
+                self.hide_initial(path)  # must be first
+                self.hide_ignorefile(path, '.qhide')
+                self.hide_comments(path)
+            else:
+                self.delete_initial(path)  # must be first
+            if export['hide_test']:
+                self.hide_ignorefile(path, '.qtest')
+            else:
+                shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
+                shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
+            for i in ['.qhide', '.qtest']:
+                try:
+                    os.remove(os.path.join(path, i))
+                except FileNotFoundError:
+                    pass
+            shutil.make_archive(path, 'zip', path)
 
-        # initial
-        self.hide_initial(self.DIST_INITIAL)  # must be first
-        self.hide_ignorefile(self.DIST_INITIAL, '.qtest')
-        self.hide_ignorefile(self.DIST_INITIAL, '.qhide')
-        self.hide_comments(self.DIST_INITIAL)
-
-        # model_solution
-        self.delete_initial(self.DIST_MODEL_SOLUTION)  # must be first
-        self.hide_ignorefile(self.DIST_MODEL_SOLUTION, '.qtest')
-
-        # test
-        self.hide_initial(self.DIST_TEST)  # must be first
-        self.hide_ignorefile(self.DIST_TEST, '.qhide')
-        self.hide_comments(self.DIST_TEST)
-
-        for i in ['.qhide', '.qtest']:
-            try:
-                os.remove(os.path.join(self.DIST_INITIAL, i))
-            except FileNotFoundError:
-                pass
-            try:
-                os.remove(os.path.join(self.DIST_MODEL_SOLUTION, i))
-            except FileNotFoundError:
-                pass
-            try:
-                os.remove(os.path.join(self.DIST_TEST, i))
-            except FileNotFoundError:
-                pass
-
-        shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), self.DIST_TEST)
-        shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), self.DIST_TEST)
-
-        shutil.rmtree(self.BASE_DIR_2)
-
-        shutil.make_archive(os.path.join(self.DIST, 'test'), 'zip', self.DIST_TEST)
-        shutil.make_archive(os.path.join(self.DIST, '{}_initial'.format(self.SLUG)), 'zip', self.DIST_INITIAL)
-        shutil.make_archive(os.path.join(self.DIST, 'model_solution'), 'zip', self.DIST_MODEL_SOLUTION)
+        shutil.rmtree(self.SRC_DIR_2)
 
         cprint('Build was successful!', color=Color.GREEN)
 

@@ -9,7 +9,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='qbuild',
-    version='0.0.1',
+    version='0.0.2',
     description='A build system for our technology challenges',
     long_description=README,
     author='Mohammad Javad Naderi',
