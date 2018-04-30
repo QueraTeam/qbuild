@@ -177,7 +177,7 @@ class Builder:
                   'sed --expression="s/INITIAL\/dist\/.*_initial\///g" | '
                   'sed --expression="s/MODEL_SOLUTION\/dist\/model_solution\///g" | '
                   'qbuild_diff-so-fancy | '
-                  'less --tabs=4 -RFX --pattern \'^(Date|added|deleted|modified): \'')
+                  'less --tabs=4 -RF --pattern \'^(Date|added|deleted|modified): \'')
 
     def main(self):
         if len(sys.argv) == 2 and sys.argv[1] == '--version':
