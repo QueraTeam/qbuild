@@ -17,7 +17,7 @@ setup(
     url='https://gitlab.com/codamooz/challenges/qbuild',
     packages=find_packages(),
     include_package_data=True,
-    scripts=['qbuild/qbuild'],
+    scripts=['qbuild/qbuild', 'qbuild/qbuild_diff-so-fancy'],
     install_requires=[
         'sh',
     ],

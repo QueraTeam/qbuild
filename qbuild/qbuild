@@ -107,13 +107,9 @@ class Builder:
             if os.path.basename(item) in ['.gitignore', '.gitkeep']:
                 os.remove(item)
 
-    def main(self):
-        if len(sys.argv) == 2 and sys.argv[1] == '--version':
-            from qbuild import version
-            print(version.__version__)
-            return
+    def build(self):
         # initial checks
-        cprint('Performing initial checks...', color=Color.YELLOW)
+        cprint('Performing initial checks...', color=Color.CYAN)
         if not os.path.isdir(self.SRC_DIR):
             cprint('Directory "src" not found!', color=Color.RED)
             return
@@ -126,6 +122,12 @@ class Builder:
         if not os.path.isdir(os.path.join(self.BASE_DIR, '.git')):
             cprint('This is not a git repo!', color=Color.RED)
             return
+        if not os.path.isfile(os.path.join(self.SRC_DIR, '.qtest')):
+            cprint('[WARNING] "src/.qtest" not found! Did you forget it?', color=Color.YELLOW)
+        else:
+            with open(os.path.join(self.SRC_DIR, '.qtest')) as fp:
+                if not fp.read().strip():
+                    cprint('[WARNING] "src/.qtest" is empty! Did you forget it?', color=Color.YELLOW)
 
         # copy src (except ignored files) to self.SRC_DIR_2 (dist/_copy__src)
         if os.path.exists(self.DIST):
@@ -167,7 +169,25 @@ class Builder:
 
         shutil.rmtree(self.SRC_DIR_2)
 
-        cprint('\nBuild was successful!', color=Color.GREEN)
+        cprint('\nBuild was successful!\n', color=Color.GREEN)
+
+    def diff(self):
+        os.system('git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ '
+                  'dist/*_initial dist/model_solution | '
+                  'sed --expression="s/INITIAL\/dist\/.*_initial\///g" | '
+                  'sed --expression="s/MODEL_SOLUTION\/dist\/model_solution\///g" | '
+                  'qbuild_diff-so-fancy | '
+                  'less --tabs=4 -RFX --pattern \'^(Date|added|deleted|modified): \'')
+
+    def main(self):
+        if len(sys.argv) == 2 and sys.argv[1] == '--version':
+            from qbuild import version
+            print(version.__version__)
+        elif len(sys.argv) == 2 and sys.argv[1] == 'diff':
+            self.build()
+            self.diff()
+        else:
+            self.build()
 
 
 if __name__ == "__main__":

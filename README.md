@@ -12,12 +12,30 @@ sudo pip install .
 
 # Usage
 
+## Build the challenge
+
 First, `cd` to the root of the challenge's git repository. Then run `qbuild` command. That's it!
 
 ```bash
 cd GIT-REPO
 qbuild
 ```
+
+Folder `dist` will be created, containing `..._initial.zip`, `model_solution.zip`, `test.zip`.
+
+## Diff
+
+```bash
+cd GIT-REPO
+qbuild diff
+```
+
+This command builds the challenges (like `qbuild` command), and then generates a diff between
+`initial` and `model_solution`.
+
+It's helpful for checking that things are set correctly.
+
+## Version
 
 For printing current installed version:
 
