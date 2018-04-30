@@ -5,8 +5,8 @@ import shutil
 
 import sh
 
-from color_print import Color, cprint
-from helpers import ls_recursive
+from qbuild.color_print import Color, cprint
+from qbuild.helpers import ls_recursive
 
 
 class Builder:
