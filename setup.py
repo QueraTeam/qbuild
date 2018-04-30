@@ -1,4 +1,5 @@
 import os
+from qbuild import version
 from setuptools import setup, find_packages
 
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
@@ -9,7 +10,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='qbuild',
-    version='0.0.2',
+    version=version.__version__,
     description='A build system for our technology challenges',
     long_description=README,
     author='Mohammad Javad Naderi',

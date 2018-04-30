@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 import shutil
 
 import sh
@@ -107,6 +108,10 @@ class Builder:
                 os.remove(item)
 
     def main(self):
+        if sys.argv[1] == '--version':
+            import version
+            print(version.__version__)
+            return
         # initial checks
         if not os.path.isdir(self.SRC_DIR):
             cprint('Directory "src" not found!', color=Color.RED)
