@@ -108,11 +108,12 @@ class Builder:
                 os.remove(item)
 
     def main(self):
-        if sys.argv[1] == '--version':
-            import version
+        if len(sys.argv) == 2 and sys.argv[1] == '--version':
+            from qbuild import version
             print(version.__version__)
             return
         # initial checks
+        cprint('Performing initial checks...', color=Color.YELLOW)
         if not os.path.isdir(self.SRC_DIR):
             cprint('Directory "src" not found!', color=Color.RED)
             return
@@ -141,6 +142,7 @@ class Builder:
 
         for export in self.EXPORTS:
             name = export['name'].format(slug=self.SLUG)
+            cprint('\nBuilding {}'.format(name), color=Color.CYAN)
             path = os.path.join(self.DIST, name)
             shutil.copytree(self.SRC_DIR_2, path)
             if export['hide_solution']:
@@ -160,11 +162,12 @@ class Builder:
                 except FileNotFoundError:
                     pass
             self.delete_gitignore_files(path)
+            cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
 
         shutil.rmtree(self.SRC_DIR_2)
 
-        cprint('Build was successful!', color=Color.GREEN)
+        cprint('\nBuild was successful!', color=Color.GREEN)
 
 
 if __name__ == "__main__":
