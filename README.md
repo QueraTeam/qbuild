@@ -2,10 +2,12 @@
 
 # Installation
 
-For installing or updating qbuild, run the following command:
+For installing or updating qbuild, run the following commands:
 
 ```bash
-pip install git+ssh://git@gitlab.com/codamooz/challenges/qbuild.git
+git clone git@gitlab.com:codamooz/challenges/qbuild.git
+cd qbuild
+sudo pip install . 
 ```
 
 # Usage
@@ -15,4 +17,10 @@ First, `cd` to the root of the challenge's git repository. Then run `qbuild` com
 ```bash
 cd GIT-REPO
 qbuild
+```
+
+For printing current installed version:
+
+```bash
+qbuild --version
 ```
