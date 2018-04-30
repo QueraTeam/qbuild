@@ -101,11 +101,23 @@ class Builder:
         shutil.rmtree(os.path.join(path, '.git'))
         os.remove(os.path.join(path, '.gitignore'))
 
+    def get_export_name(self, export):
+        return export['name'].format(slug=self.SLUG)
+
+    def get_export_path(self, export):
+        return os.path.join(self.DIST, self.get_export_name(export))
+
     @staticmethod
     def delete_gitignore_files(path):
         for item in ls_recursive(path, exclude_dirs=True):
             if os.path.basename(item) in ['.gitignore', '.gitkeep']:
                 os.remove(item)
+
+    def is_built(self):
+        for export in Builder.EXPORTS:
+            if not os.path.isdir(self.get_export_path(export)):
+                return False
+        return True
 
     def build(self):
         # initial checks
@@ -143,9 +155,9 @@ class Builder:
             shutil.copy2(os.path.join(self.SRC_DIR, item), d)
 
         for export in self.EXPORTS:
-            name = export['name'].format(slug=self.SLUG)
+            name = self.get_export_name(export)
             cprint('\nBuilding {}'.format(name), color=Color.CYAN)
-            path = os.path.join(self.DIST, name)
+            path = self.get_export_path(export)
             shutil.copytree(self.SRC_DIR_2, path)
             if export['hide_solution']:
                 self.process_initial(path, action='replace')  # must be first
@@ -184,8 +196,10 @@ class Builder:
             from qbuild import version
             print(version.__version__)
         elif len(sys.argv) == 2 and sys.argv[1] == 'diff':
-            self.build()
-            self.diff()
+            if not self.is_built():
+                cprint('\nChallenge is not built. Run `qbuild` first.\n', color=Color.YELLOW)
+            else:
+                self.diff()
         else:
             self.build()
 
