@@ -67,3 +67,8 @@ def ls_recursive(path, relative=False, exclude_gitignore=False, exclude_dirs=Fal
         return [os.path.relpath(i, start=path) for i in absolute_paths]
     else:
         return absolute_paths
+
+
+def load_statement_templates(statement_dir):
+    from jinja2 import FileSystemLoader
+    return FileSystemLoader([os.path.join(os.path.dirname(__file__), 'templates'), statement_dir])

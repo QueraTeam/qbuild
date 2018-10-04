@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
+import filecmp
 import os
 import sys
 import shutil
 
 import sh
+from jinja2 import Environment, TemplateNotFound
 
 from qbuild.color_print import Color, cprint
-from qbuild.helpers import ls_recursive
+from qbuild.helpers import ls_recursive, load_statement_templates
+from qbuild.tree import tree
 
 
 class Builder:
@@ -31,6 +34,8 @@ class Builder:
         }
     ]
 
+    INITIAL_EXPORT = EXPORTS[0]
+
     def __init__(self, base_dir):
         # Creating directory paths...
         self.BASE_DIR = base_dir
@@ -39,6 +44,12 @@ class Builder:
 
         self.DIST = os.path.join(self.BASE_DIR, 'dist')
         self.SRC_DIR_2 = os.path.join(self.DIST, '_copy__src')
+
+        self.QBUILD_DIR = os.path.join(self.BASE_DIR, '.qbuild')
+        self.STATEMENT_DIR = os.path.join(self.BASE_DIR, 'statement')
+
+        if not os.path.isdir(self.QBUILD_DIR):
+            os.mkdir(self.QBUILD_DIR)
 
     @staticmethod
     def hide_comments(path):
@@ -119,6 +130,39 @@ class Builder:
                 return False
         return True
 
+    def render_statement(self):
+        env = Environment(loader=load_statement_templates(self.STATEMENT_DIR))
+        try:
+            template = env.get_template('statement.md')
+        except TemplateNotFound:
+            cprint('[WARNING] "statement/statement.md" not found! Did you forget it?', color=Color.YELLOW)
+            return
+
+        destination_file = os.path.join(self.BASE_DIR, 'README.md')
+        destination_file_copy = os.path.join(self.QBUILD_DIR, '.README.md.prev')
+        if os.path.isfile(destination_file) and os.path.isfile(destination_file_copy) and not filecmp.cmp(destination_file, destination_file_copy):
+            shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, 'README.md.backup'))
+            cprint('[WARNING] README.md was modified manually. README.md will be auto-generated and your changes will be overwritten. However we created a copy before overwriting: README.md.backup', color=Color.YELLOW)
+
+        has_initial = len(os.listdir(self.get_export_path(self.INITIAL_EXPORT))) > 0
+
+        statement = template.render(has_initial=has_initial,
+                                    initial_structure=tree(self.get_export_path(self.INITIAL_EXPORT)))
+
+        attachments_dir = os.path.join(self.STATEMENT_DIR, 'attachments')
+        if os.path.isdir(attachments_dir):
+            for item in os.listdir(attachments_dir):
+                path = os.path.join(attachments_dir, item)
+                if not os.path.isfile(path):
+                    continue
+                statement = statement.replace(
+                    os.path.join('attachments', item),
+                    os.path.relpath(os.path.join(attachments_dir, item), self.BASE_DIR)
+                )
+        with open(destination_file, 'w') as fp:
+            fp.write(statement)
+        shutil.copy2(destination_file, destination_file_copy)
+
     def build(self):
         # initial checks
         cprint('Performing initial checks...', color=Color.CYAN)
@@ -178,8 +222,11 @@ class Builder:
             self.delete_gitignore_files(path)
             cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
+        print()
 
         shutil.rmtree(self.SRC_DIR_2)
+
+        self.render_statement()
 
         cprint('\nBuild was successful!\n', color=Color.GREEN)
 

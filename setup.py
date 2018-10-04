@@ -20,6 +20,7 @@ setup(
     scripts=['qbuild/qbuild', 'qbuild/qbuild_diff-so-fancy'],
     install_requires=[
         'sh',
+        'Jinja2'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
