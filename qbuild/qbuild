@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import filecmp
+import json
 import os
 import sys
 import shutil
+from collections import OrderedDict
+from fnmatch import fnmatchcase
 
 import sh
 from jinja2 import Environment, TemplateNotFound
@@ -18,17 +21,20 @@ class Builder:
 
     EXPORTS = [
         {
-            'name': '{slug}_initial',
+            'code': 'initial',
+            'export_name': '{slug}_initial',
             'hide_solution': True,
             'hide_test': True
         },
         {
-            'name': 'model_solution',
+            'code': 'model_solution',
+            'export_name': 'model_solution',
             'hide_solution': False,
             'hide_test': True
         },
         {
-            'name': 'test',
+            'code': 'test',
+            'export_name': 'test',
             'hide_solution': True,
             'hide_test': False
         }
@@ -113,7 +119,7 @@ class Builder:
         os.remove(os.path.join(path, '.gitignore'))
 
     def get_export_name(self, export):
-        return export['name'].format(slug=self.SLUG)
+        return export['export_name'].format(slug=self.SLUG)
 
     def get_export_path(self, export):
         return os.path.join(self.DIST, self.get_export_name(export))
@@ -123,6 +129,53 @@ class Builder:
         for item in ls_recursive(path, exclude_dirs=True):
             if os.path.basename(item) in ['.gitignore', '.gitkeep']:
                 os.remove(item)
+
+    @staticmethod
+    def process_package_json(path, export):
+
+        def action_remove(dd, keys):
+            if type(dd) is not OrderedDict:
+                return
+            if type(keys) is str:
+                for k in list(dd.keys()):
+                    if fnmatchcase(k, keys):
+                        dd.pop(k)
+            elif type(keys) is list:
+                for i in keys:
+                    action_remove(dd, i)
+            elif type(keys) is OrderedDict:
+                for k, v in keys.items():
+                    if k in dd:
+                        action_remove(dd[k], v)
+
+        def action_add(dd, keys):
+            if type(dd) is not OrderedDict:
+                return
+            if type(keys) is not OrderedDict:
+                return
+            for k, v in keys.items():
+                if type(v) is not OrderedDict or k not in dd:
+                    dd[k] = v
+                else:
+                    action_add(dd[k], v)
+
+        for item in ls_recursive(path, exclude_dirs=True):
+            if os.path.basename(item) != 'package.json':
+                continue
+            with open(item) as fp:
+                d = json.load(fp, object_pairs_hook=OrderedDict)
+            if '//' not in d:
+                continue
+            if export['code'] not in d['//']:
+                continue
+            actions = d['//'][export['code']]
+            if 'remove' in actions:
+                action_remove(d, actions['remove'])
+            if 'add' in actions:
+                action_add(d, actions['add'])
+            d.pop('//')
+            with open(item, 'w') as fp:
+                json.dump(d, fp, indent=2)
 
     def is_built(self):
         for export in Builder.EXPORTS:
@@ -220,6 +273,7 @@ class Builder:
                 except FileNotFoundError:
                     pass
             self.delete_gitignore_files(path)
+            self.process_package_json(path, export)
             cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
         print()
