@@ -293,6 +293,7 @@ class Builder:
             if export['hide_solution']:
                 self.process_initial(path, action='replace')  # must be first
                 self.hide_ignorefile(path, '.qhide')
+                self.hide_ignorefile(path, '.qsolution')
                 self.hide_comments(path)
             else:
                 self.process_initial(path, action='delete')  # must be first
@@ -301,7 +302,8 @@ class Builder:
             else:
                 shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
                 shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
-            for i in ['.qhide', '.qtest']:
+            self.hide_ignorefile(path, '.qignore')
+            for i in ['.qhide', '.qsolution', '.qtest', '.qignore']:
                 try:
                     os.remove(os.path.join(path, i))
                 except FileNotFoundError:
