@@ -19,28 +19,32 @@ class Builder:
     HIDE_BEGIN = '_q_hide_from_users_begin'
     HIDE_END = '_q_hide_from_users_end'
 
-    EXPORTS = [
-        {
-            'code': 'initial',
-            'export_name': '{slug}_initial',
-            'hide_solution': True,
-            'hide_test': True
-        },
-        {
-            'code': 'model_solution',
-            'export_name': 'model_solution',
-            'hide_solution': False,
-            'hide_test': True
-        },
-        {
-            'code': 'test',
-            'export_name': 'test',
-            'hide_solution': True,
-            'hide_test': False
-        }
-    ]
+    EXPORT_INITIAL = {
+        'code': 'initial',
+        'export_name': '{slug}_initial',
+        'hide_solution': True,
+        'hide_test': True
+    }
 
-    INITIAL_EXPORT = EXPORTS[0]
+    EXPORT_MODEL_SOLUTION = {
+        'code': 'model_solution',
+        'export_name': 'model_solution',
+        'hide_solution': False,
+        'hide_test': True
+    }
+
+    EXPORT_TEST = {
+        'code': 'test',
+        'export_name': 'test',
+        'hide_solution': True,
+        'hide_test': False
+    }
+
+    EXPORTS = [
+        EXPORT_INITIAL,
+        EXPORT_MODEL_SOLUTION,
+        EXPORT_TEST
+    ]
 
     def __init__(self, base_dir):
         # Creating directory paths...
@@ -184,37 +188,67 @@ class Builder:
         return True
 
     def render_statement(self):
-        env = Environment(loader=load_statement_templates(self.STATEMENT_DIR))
+        env = Environment(
+            loader=load_statement_templates(self.STATEMENT_DIR),
+            trim_blocks=True, lstrip_blocks=True
+        )
         try:
             template = env.get_template('statement.md')
         except TemplateNotFound:
             cprint('[WARNING] "statement/statement.md" not found! Did you forget it?', color=Color.YELLOW)
             return
 
-        destination_file = os.path.join(self.BASE_DIR, 'README.md')
-        destination_file_copy = os.path.join(self.QBUILD_DIR, '.README.md.prev')
-        if os.path.isfile(destination_file) and os.path.isfile(destination_file_copy) and not filecmp.cmp(destination_file, destination_file_copy):
-            shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, 'README.md.backup'))
-            cprint('[WARNING] README.md was modified manually. README.md will be auto-generated and your changes will be overwritten. However we created a copy before overwriting: README.md.backup', color=Color.YELLOW)
+        outputs = [
+            {
+                'file_name': 'README.md',
+                'extra_context': {
+                    'is_readme': True
+                }
+            },
+            {
+                'file_name': 'statement.md',
+                'extra_context': {
+                    'is_readme': False
+                }
+            }
+        ]
+        context = {
+            'has_initial': len(os.listdir(self.get_export_path(self.EXPORT_INITIAL))) > 0,
+            'initial_structure': tree(self.get_export_path(self.EXPORT_INITIAL), self.SLUG),
+            'solution_structure': tree(self.get_export_path(self.EXPORT_MODEL_SOLUTION), '[your-zip-file-name].zip'),
+        }
 
-        has_initial = len(os.listdir(self.get_export_path(self.INITIAL_EXPORT))) > 0
-
-        statement = template.render(has_initial=has_initial,
-                                    initial_structure=tree(self.get_export_path(self.INITIAL_EXPORT)))
-
-        attachments_dir = os.path.join(self.STATEMENT_DIR, 'attachments')
-        if os.path.isdir(attachments_dir):
-            for item in os.listdir(attachments_dir):
-                path = os.path.join(attachments_dir, item)
-                if not os.path.isfile(path):
-                    continue
-                statement = statement.replace(
-                    os.path.join('attachments', item),
-                    os.path.relpath(os.path.join(attachments_dir, item), self.BASE_DIR)
+        for output in outputs:
+            destination_file = os.path.join(self.BASE_DIR, output['file_name'])
+            destination_file_prev = os.path.join(self.QBUILD_DIR, '.{}.prev'.format(output['file_name']))
+            if os.path.isfile(destination_file) and os.path.isfile(destination_file_prev) \
+                    and not filecmp.cmp(destination_file, destination_file_prev):
+                shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, '{}.backup'.format(output['file_name'])))
+                cprint(
+                    '\n[WARNING] {file_name} was modified manually. '
+                    'It will be auto-generated and your changes will be overwritten. '
+                    'However we created a copy before overwriting: {file_name}.backup'.format(
+                        file_name=output['file_name']), color=Color.YELLOW
                 )
-        with open(destination_file, 'w') as fp:
-            fp.write(statement)
-        shutil.copy2(destination_file, destination_file_copy)
+
+            statement = template.render(
+                **context,
+                **output['extra_context']
+            )
+
+            attachments_dir = os.path.join(self.STATEMENT_DIR, 'attachments')
+            if os.path.isdir(attachments_dir):
+                for item in os.listdir(attachments_dir):
+                    path = os.path.join(attachments_dir, item)
+                    if not os.path.isfile(path):
+                        continue
+                    statement = statement.replace(
+                        os.path.join('attachments', item),
+                        os.path.relpath(os.path.join(attachments_dir, item), self.BASE_DIR)
+                    )
+            with open(destination_file, 'w') as fp:
+                fp.write(statement)
+            shutil.copy2(destination_file, destination_file_prev)
 
     def build(self):
         # initial checks
@@ -276,7 +310,6 @@ class Builder:
             self.process_package_json(path, export)
             cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
-        print()
 
         shutil.rmtree(self.SRC_DIR_2)
 
