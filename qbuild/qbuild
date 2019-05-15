@@ -59,7 +59,7 @@ class Builder:
 
     @staticmethod
     def hide_comments(path):
-        for item in ls_recursive(path, exclude_dirs=True):
+        for item in ls_recursive(path, only_files=True):
             with open(item) as fp:
                 # FIXME it reads file at once. what happens for large files?
                 try:
@@ -126,7 +126,7 @@ class Builder:
 
     @staticmethod
     def delete_gitignore_files(path):
-        for item in ls_recursive(path, exclude_dirs=True):
+        for item in ls_recursive(path, only_files=True):
             if os.path.basename(item) in ['.gitignore', '.gitkeep']:
                 os.remove(item)
 
@@ -159,7 +159,7 @@ class Builder:
                 else:
                     action_add(dd[k], v)
 
-        for item in ls_recursive(path, exclude_dirs=True):
+        for item in ls_recursive(path, only_files=True):
             if os.path.basename(item) != 'package.json':
                 continue
             with open(item) as fp:
@@ -245,7 +245,7 @@ class Builder:
         if os.path.exists(self.SRC_DIR_2):
             shutil.rmtree(self.SRC_DIR_2)
         os.mkdir(self.SRC_DIR_2)
-        for item in ls_recursive(self.SRC_DIR, relative=True, exclude_gitignore=True, exclude_dirs=True):
+        for item in ls_recursive(self.SRC_DIR, relative=True, exclude_gitignore=True, only_files=True):
             d = os.path.dirname(os.path.join(self.SRC_DIR_2, item))
             if not os.path.exists(d):
                 os.makedirs(d)
