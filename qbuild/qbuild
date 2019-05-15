@@ -16,8 +16,8 @@ from qbuild.tree import tree
 
 
 class Builder:
-    HIDE_BEGIN = '_q_hide_from_users_begin'
-    HIDE_END = '_q_hide_from_users_end'
+    SOLUTION_COMMENT_BEGIN = ['_q_hide_from_users_begin', '_q_solution_begin']
+    SOLUTION_COMMENT_END = ['_q_hide_from_users_end', '_q_solution_end']
 
     EXPORT_INITIAL = {
         'code': 'initial',
@@ -75,10 +75,10 @@ class Builder:
             hiding = False
             for line in lines:
                 if hiding:
-                    if Builder.HIDE_END in line:
+                    if any(i in line for i in Builder.SOLUTION_COMMENT_END):
                         hiding = False
                 else:
-                    if Builder.HIDE_BEGIN in line:
+                    if any(i in line for i in Builder.SOLUTION_COMMENT_BEGIN):
                         hiding = True
                     else:
                         new_content += line
