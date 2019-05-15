@@ -11,12 +11,13 @@ import sh
 from jinja2 import Environment, TemplateNotFound
 
 from qbuild.color_print import Color, cprint
-from qbuild.helpers import ls_recursive, load_statement_templates
+from qbuild.helpers import ls_recursive, load_statement_templates, uncomment
 from qbuild.tree import tree
 
 
 class Builder:
     SOLUTION_COMMENT_BEGIN = ['_q_hide_from_users_begin', '_q_solution_begin']
+    SOLUTION_COMMENT_REPLACE = ['_q_solution_replace']
     SOLUTION_COMMENT_END = ['_q_hide_from_users_end', '_q_solution_end']
 
     EXPORT_INITIAL = {
@@ -62,7 +63,7 @@ class Builder:
             os.mkdir(self.QBUILD_DIR)
 
     @staticmethod
-    def hide_comments(path):
+    def process_solution_comments(path, show=None):
         for item in ls_recursive(path, only_files=True):
             with open(item) as fp:
                 # FIXME it reads file at once. what happens for large files?
@@ -72,14 +73,27 @@ class Builder:
                     # file is not text
                     continue
             new_content = ''
-            hiding = False
+            state = 'normal'
+            comment_style = None
             for line in lines:
-                if hiding:
+                if state == 'solution':
                     if any(i in line for i in Builder.SOLUTION_COMMENT_END):
-                        hiding = False
-                else:
-                    if any(i in line for i in Builder.SOLUTION_COMMENT_BEGIN):
-                        hiding = True
+                        state = 'normal'
+                    elif any(i in line for i in Builder.SOLUTION_COMMENT_REPLACE):
+                        state = 'replacement'
+                    elif show == 'solution':
+                        new_content += line
+                elif state == 'replacement':
+                    if any(i in line for i in Builder.SOLUTION_COMMENT_END):
+                        state = 'normal'
+                    elif show == 'replacement':
+                        new_content += uncomment(line, comment_style)
+                elif state == 'normal':
+                    for scb in Builder.SOLUTION_COMMENT_BEGIN:
+                        if scb in line:
+                            state = 'solution'
+                            comment_style = [i.strip() for i in line.split(scb) if i.strip()]
+                            break
                     else:
                         new_content += line
             with open(item, 'w') as fp:
@@ -290,11 +304,11 @@ class Builder:
             cprint('\nBuilding {}'.format(name), color=Color.CYAN)
             path = self.get_export_path(export)
             shutil.copytree(self.SRC_DIR_2, path)
+            self.hide_ignorefile(path, '.qignore')
             if export['hide_solution']:
                 self.process_initial(path, action='replace')  # must be first
                 self.hide_ignorefile(path, '.qhide')
                 self.hide_ignorefile(path, '.qsolution')
-                self.hide_comments(path)
             else:
                 self.process_initial(path, action='delete')  # must be first
             if export['hide_test']:
@@ -302,7 +316,10 @@ class Builder:
             else:
                 shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
                 shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
-            self.hide_ignorefile(path, '.qignore')
+            if export['hide_solution']:
+                self.process_solution_comments(path, show='replacement')
+            else:
+                self.process_solution_comments(path, show='solution')
             for i in ['.qhide', '.qsolution', '.qtest', '.qignore']:
                 try:
                     os.remove(os.path.join(path, i))

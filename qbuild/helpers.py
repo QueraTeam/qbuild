@@ -1,4 +1,6 @@
 import os
+import re
+
 import sh
 
 
@@ -83,3 +85,21 @@ def ls_recursive(path, relative=False, exclude_gitignore=False, only_files=False
 def load_statement_templates(statement_dir):
     from jinja2 import FileSystemLoader
     return FileSystemLoader([os.path.join(os.path.dirname(__file__), 'templates'), statement_dir])
+
+
+def uncomment(commented_line, comment_style):
+    """
+    Uncomments a single line of code
+    :param commented_line: the line of code to be uncommented
+    :param comment_style: a list of length 1 or 2, e.g. ['//'], ['/*', '*/']
+    :return: the uncommented code
+    """
+    if not comment_style:
+        return commented_line
+    if len(comment_style) not in [1, 2]:
+        return commented_line
+    pattern = r'^(\s*){}\s*(.*?)\s*?'.format(re.escape(comment_style[0]))
+    if len(comment_style) == 2:
+        pattern += r'{}\s*?'.format(re.escape(comment_style[1]))
+    pattern += r'(\n?)$'
+    return re.sub(pattern, r'\1\2\3', commented_line)
