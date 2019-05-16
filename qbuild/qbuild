@@ -184,13 +184,12 @@ class Builder:
                 d = json.load(fp, object_pairs_hook=OrderedDict)
             if '//' not in d:
                 continue
-            if export['code'] not in d['//']:
-                continue
-            actions = d['//'][export['code']]
-            if 'remove' in actions:
-                action_remove(d, actions['remove'])
-            if 'add' in actions:
-                action_add(d, actions['add'])
+            if export['code'] in d['//']:
+                actions = d['//'][export['code']]
+                if 'remove' in actions:
+                    action_remove(d, actions['remove'])
+                if 'add' in actions:
+                    action_add(d, actions['add'])
             d.pop('//')
             with open(item, 'w') as fp:
                 json.dump(d, fp, indent=2)
