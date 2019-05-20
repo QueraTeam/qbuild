@@ -136,6 +136,15 @@ class Builder:
         shutil.rmtree(os.path.join(path, '.git'))
         os.remove(os.path.join(path, '.gitignore'))
 
+    @staticmethod
+    def run_qrun(path, export):
+        args = []
+        if export['hide_solution']:
+            args.append('--hide-solution')
+        if export['hide_test']:
+            args.append('--hide-test')
+        sh.python('.qrun.py', *args, _cwd=path)
+
     def get_export_name(self, export):
         return export['export_name'].format(slug=self.SLUG)
 
@@ -319,7 +328,8 @@ class Builder:
                 self.process_solution_comments(path, show='replacement')
             else:
                 self.process_solution_comments(path, show='solution')
-            for i in ['.qhide', '.qsolution', '.qtest', '.qignore']:
+            self.run_qrun(path, export)
+            for i in ['.qhide', '.qsolution', '.qtest', '.qignore', '.qrun.py']:
                 try:
                     os.remove(os.path.join(path, i))
                 except FileNotFoundError:
@@ -340,8 +350,10 @@ class Builder:
                   'dist/*_initial dist/model_solution | '
                   'sed --expression="s/INITIAL\/dist\/.*_initial\///g" | '
                   'sed --expression="s/MODEL_SOLUTION\/dist\/model_solution\///g" | '
+                  'sed --expression="s/dist\/.*_initial\///g" | '
+                  'sed --expression="s/dist\/model_solution\///g" | '
                   'qbuild_diff-so-fancy | '
-                  'less --tabs=4 -RF --pattern \'^(Date|added|deleted|modified):\'')
+                  'less --tabs=4 -RFX')
 
     def main(self):
         if len(sys.argv) == 2 and sys.argv[1] == '--version':
