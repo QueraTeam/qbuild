@@ -138,6 +138,8 @@ class Builder:
 
     @staticmethod
     def run_qrun(path, export):
+        if not os.path.exists(os.path.join(path, '.qrun.py')):
+            return
         args = []
         if export['hide_solution']:
             args.append('--hide-solution')
