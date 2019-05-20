@@ -20,6 +20,7 @@ class Builder:
     SOLUTION_COMMENT_REPLACE = ['_q_solution_replace']
     SOLUTION_COMMENT_END = ['_q_hide_from_users_end', '_q_solution_end']
 
+    QIGNORE_FILES = ['.qignore']
     QSOLUTION_FILES = ['.qhide', '.qsolution']
     QTEST_FILES = ['.qtest']
 
@@ -325,7 +326,7 @@ class Builder:
             cprint('\nBuilding {}'.format(name), color=Color.CYAN)
             path = self.get_export_path(export)
             shutil.copytree(self.SRC_DIR_2, path)
-            self.hide_ignorefile(path, '.qignore')
+            self.hide_ignorefile(path, self.QIGNORE_FILES)
             if export['hide_solution']:
                 self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='replace')  # must be first
                 self.hide_ignorefile(path, self.QSOLUTION_FILES)
