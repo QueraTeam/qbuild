@@ -35,6 +35,13 @@ This command builds the challenges (like `qbuild` command), and then generates a
 
 It's helpful for checking that things are set correctly.
 
+## Deprecations
+
+- `_q_hide_from_user_begin`: replaced by `_q_solution_begin`
+- `_q_hide_from_users_end`: replaced by `_q_solution_end`
+- `*.initial`: replaced by `*.nosolution`
+
+
 ## Version
 
 For printing current installed version:

@@ -20,6 +20,12 @@ class Builder:
     SOLUTION_COMMENT_REPLACE = ['_q_solution_replace']
     SOLUTION_COMMENT_END = ['_q_hide_from_users_end', '_q_solution_end']
 
+    QSOLUTION_FILES = ['.qhide', '.qsolution']
+    QTEST_FILES = ['.qtest']
+
+    NOSOLUTION_EXTENSIONS = ['.initial', '.nosolution']
+    NOTEST_EXTENSIONS = ['.notest']
+
     EXPORT_INITIAL = {
         'code': 'initial',
         'export_name': '{slug}_initial',
@@ -100,41 +106,46 @@ class Builder:
                 fp.write(new_content)
 
     @staticmethod
-    def process_initial(path, action):
+    def process_initial(path, ext_list, action):
+        for ext in ext_list:
+            if ext not in ['.initial', '.nosolution', '.notest']:
+                raise Exception
         if action not in ['replace', 'delete']:
             raise Exception
         items = ls_recursive(path)
         items_to_hide = []
         for item in items:
-            if item + '.initial' in items:
-                items_to_hide.append(item)
-        for item in items_to_hide:
+            for ext in ext_list:
+                if item + ext in items:
+                    items_to_hide.append((item, ext))
+        for item, ext in items_to_hide:
             if action == 'replace':
                 if os.path.isdir(item):
                     shutil.rmtree(item)
                 else:
                     os.remove(item)
-                os.rename(item + '.initial', item)
+                os.rename(item + ext, item)
             elif action == 'delete':
-                if os.path.isdir(item + '.initial'):
-                    shutil.rmtree(item + '.initial')
+                if os.path.isdir(item + ext):
+                    shutil.rmtree(item + ext)
                 else:
-                    os.remove(item + '.initial')
+                    os.remove(item + ext)
 
     @staticmethod
-    def hide_ignorefile(path, ignorefile):
-        if not os.path.exists(os.path.join(path, ignorefile)):
-            return
-        try:
+    def hide_ignorefile(path, ignorefile_list):
+        for ignorefile in ignorefile_list:
+            if not os.path.exists(os.path.join(path, ignorefile)):
+                return
+            try:
+                os.remove(os.path.join(path, '.gitignore'))
+            except FileNotFoundError:
+                pass
+            os.rename(os.path.join(path, ignorefile), os.path.join(path, '.gitignore'))
+            sh.git.init(_cwd=path)
+            sh.git.add('.', _cwd=path)
+            sh.git.clean('-xdf', _cwd=path)
+            shutil.rmtree(os.path.join(path, '.git'))
             os.remove(os.path.join(path, '.gitignore'))
-        except FileNotFoundError:
-            pass
-        os.rename(os.path.join(path, ignorefile), os.path.join(path, '.gitignore'))
-        sh.git.init(_cwd=path)
-        sh.git.add('.', _cwd=path)
-        sh.git.clean('-xdf', _cwd=path)
-        shutil.rmtree(os.path.join(path, '.git'))
-        os.remove(os.path.join(path, '.gitignore'))
 
     @staticmethod
     def run_qrun(path, export):
@@ -316,14 +327,15 @@ class Builder:
             shutil.copytree(self.SRC_DIR_2, path)
             self.hide_ignorefile(path, '.qignore')
             if export['hide_solution']:
-                self.process_initial(path, action='replace')  # must be first
-                self.hide_ignorefile(path, '.qhide')
-                self.hide_ignorefile(path, '.qsolution')
+                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='replace')  # must be first
+                self.hide_ignorefile(path, self.QSOLUTION_FILES)
             else:
-                self.process_initial(path, action='delete')  # must be first
+                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='delete')  # must be first
             if export['hide_test']:
-                self.hide_ignorefile(path, '.qtest')
+                self.process_initial(path, self.NOTEST_EXTENSIONS, action='replace')  # must be first
+                self.hide_ignorefile(path, self.QTEST_FILES)
             else:
+                self.process_initial(path, self.NOTEST_EXTENSIONS, action='delete')  # must be first
                 shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
                 shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
             if export['hide_solution']:
@@ -331,7 +343,7 @@ class Builder:
             else:
                 self.process_solution_comments(path, show='solution')
             self.run_qrun(path, export)
-            for i in ['.qhide', '.qsolution', '.qtest', '.qignore', '.qrun.py']:
+            for i in self.QSOLUTION_FILES + self.QTEST_FILES + ['.qignore', '.qrun.py']:
                 try:
                     os.remove(os.path.join(path, i))
                 except FileNotFoundError:
