@@ -29,7 +29,7 @@ class Builder:
 
     EXPORT_INITIAL = {
         'code': 'initial',
-        'export_name': '{slug}_initial',
+        'export_name': '{slug}',
         'hide_solution': True,
         'hide_test': True
     }
