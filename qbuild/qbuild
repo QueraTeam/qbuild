@@ -116,21 +116,24 @@ class Builder:
         items = ls_recursive(path)
         items_to_hide = []
         for item in items:
+            a, b = os.path.splitext(item)
             for ext in ext_list:
                 if item + ext in items:
-                    items_to_hide.append((item, ext))
-        for item, ext in items_to_hide:
+                    items_to_hide.append((item, ext, item + ext))
+                elif a + ext + b in items:
+                    items_to_hide.append((item, ext, a + ext + b))
+        for item, ext, repl in items_to_hide:
             if action == 'replace':
                 if os.path.isdir(item):
                     shutil.rmtree(item)
                 else:
                     os.remove(item)
-                os.rename(item + ext, item)
+                os.rename(repl, item)
             elif action == 'delete':
-                if os.path.isdir(item + ext):
-                    shutil.rmtree(item + ext)
+                if os.path.isdir(repl):
+                    shutil.rmtree(repl)
                 else:
-                    os.remove(item + ext)
+                    os.remove(repl)
 
     @staticmethod
     def hide_ignorefile(path, ignorefile_list):
