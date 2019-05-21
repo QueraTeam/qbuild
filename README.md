@@ -149,7 +149,7 @@ e.g. You can't mix `// ...` and `/* ... */`.
 
 **Warning**: These directives are depricated:
 
-- `_q_hide_from_user_begin`: replaced by `_q_solution_begin`
+- `_q_hide_from_users_begin`: replaced by `_q_solution_begin`
 - `_q_hide_from_users_end`: replaced by `_q_end`
 
 ### Replacement Rules: `.nosolution`, `.notest`
