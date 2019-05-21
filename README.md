@@ -114,18 +114,6 @@ Files ignored by `.qignore` will be removed in all exports.
 **Warning**: `.qhide` is deprecated and is replaced by `.qsolution`.
 
 
-### Build hook: `.qrun.py`
-
-`.qrun.py` must be at the root of `src`.
-`qbuild` runs `.qrun.py` in each export.
-
-Arguments passed to `.qrun.py`:
-
-- `--hide-solution`: If passed, current export shouldn't contain solutions.
-- `--hide-test`: If passed, current export shouldn't contain tests.
-
-Use `.qrun.py` only if other features are not enough.
-
 ### Replacement Rules: Comment Directives
 
 ```
@@ -177,3 +165,16 @@ src/path/to/some/file.notest.js  (`file.js` without test)
 ```
 
 **Warning**: `.initial` is deprecated and is replaced by `.nosolution`.
+
+
+### Build hook: `.qrun.py`
+
+`.qrun.py` must be at the root of `src`.
+`qbuild` runs `.qrun.py` in each export.
+
+Arguments passed to `.qrun.py`:
+
+- `--hide-solution`: If passed, current export shouldn't contain solutions.
+- `--hide-test`: If passed, current export shouldn't contain tests.
+
+Use `.qrun.py` only if other features are not enough.
