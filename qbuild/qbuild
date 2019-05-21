@@ -17,8 +17,9 @@ from qbuild.tree import tree
 
 class Builder:
     SOLUTION_COMMENT_BEGIN = ['_q_hide_from_users_begin', '_q_solution_begin']
-    SOLUTION_COMMENT_REPLACE = ['_q_solution_replace']
-    SOLUTION_COMMENT_END = ['_q_hide_from_users_end', '_q_solution_end']
+    TEST_COMMENT_BEGIN = ['_q_test_begin']
+    COMMENT_REPLACE = ['_q_replace']
+    COMMENT_END = ['_q_hide_from_users_end', '_q_end']
 
     QIGNORE_FILES = ['.qignore']
     QSOLUTION_FILES = ['.qhide', '.qsolution']
@@ -70,7 +71,7 @@ class Builder:
             os.mkdir(self.QBUILD_DIR)
 
     @staticmethod
-    def process_solution_comments(path, show=None):
+    def process_comments(path, comment_begin, show=None):
         for item in ls_recursive(path, only_files=True):
             with open(item) as fp:
                 # FIXME it reads file at once. what happens for large files?
@@ -83,22 +84,22 @@ class Builder:
             state = 'normal'
             comment_style = None
             for line in lines:
-                if state == 'solution':
-                    if any(i in line for i in Builder.SOLUTION_COMMENT_END):
+                if state == 'main':
+                    if any(i in line for i in Builder.COMMENT_END):
                         state = 'normal'
-                    elif any(i in line for i in Builder.SOLUTION_COMMENT_REPLACE):
+                    elif any(i in line for i in Builder.COMMENT_REPLACE):
                         state = 'replacement'
-                    elif show == 'solution':
+                    elif show == 'main':
                         new_content += line
                 elif state == 'replacement':
-                    if any(i in line for i in Builder.SOLUTION_COMMENT_END):
+                    if any(i in line for i in Builder.COMMENT_END):
                         state = 'normal'
                     elif show == 'replacement':
                         new_content += uncomment(line, comment_style)
                 elif state == 'normal':
-                    for scb in Builder.SOLUTION_COMMENT_BEGIN:
+                    for scb in comment_begin:
                         if scb in line:
-                            state = 'solution'
+                            state = 'main'
                             comment_style = [i.strip() for i in line.split(scb) if i.strip()]
                             break
                     else:
@@ -343,9 +344,13 @@ class Builder:
                 shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
                 shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
             if export['hide_solution']:
-                self.process_solution_comments(path, show='replacement')
+                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show='replacement')
             else:
-                self.process_solution_comments(path, show='solution')
+                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show='main')
+            if export['hide_test']:
+                self.process_comments(path, self.TEST_COMMENT_BEGIN, show='replacement')
+            else:
+                self.process_comments(path, self.TEST_COMMENT_BEGIN, show='main')
             self.run_qrun(path, export)
             for i in self.QSOLUTION_FILES + self.QTEST_FILES + ['.qignore', '.qrun.py']:
                 try:
