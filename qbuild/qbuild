@@ -369,14 +369,17 @@ class Builder:
         cprint('\nBuild was successful!\n', color=Color.GREEN)
 
     def diff(self):
-        os.system('git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ '
-                  'dist/*_initial dist/model_solution | '
-                  'sed --expression="s/INITIAL\/dist\/.*_initial\///g" | '
-                  'sed --expression="s/MODEL_SOLUTION\/dist\/model_solution\///g" | '
-                  'sed --expression="s/dist\/.*_initial\///g" | '
-                  'sed --expression="s/dist\/model_solution\///g" | '
-                  'qbuild_diff-so-fancy | '
-                  'less --tabs=4 -RFX')
+        os.system(
+            'git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ '
+            'dist/{initial_name} dist/{model_solution_name} | '
+            'sed --expression="s/INITIAL\/dist\/{initial_name}\///g" | '
+            'sed --expression="s/MODEL_SOLUTION\/dist\/{model_solution_name}\///g" | '
+            'sed --expression="s/dist\/{initial_name}\///g" | '
+            'sed --expression="s/dist\/{model_solution_name}\///g" | '
+            'qbuild_diff-so-fancy | '
+            'less --tabs=4 -RFX'.format(initial_name=self.get_export_name(self.EXPORT_INITIAL),
+                                        model_solution_name=self.get_export_name(self.EXPORT_MODEL_SOLUTION))
+        )
 
     def main(self):
         if len(sys.argv) == 2 and sys.argv[1] == '--version':
