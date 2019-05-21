@@ -19,7 +19,8 @@ challenge-name (git repo)
 │   ├── .gitignore (optional)
 │   ├── .qignore (optional)
 │   ├── .qsolution (optional)
-│   └── .qtest (optional, BUT USUALLY NEEDED)
+│   ├── .qtest (optional, BUT USUALLY NEEDED)
+│   └── .qrun.py (optional)
 ├── statement
 │   ├── attachments
 │   │   └── [ ... image files ... ]
@@ -106,13 +107,24 @@ You can use variables `has_initial`, `initial_structure`, `solution_structure`.
 
 These files must be at the root of `src` folder.
 Their syntax is like gitignore.
-
 You can specify test files in `.qtest`
 and solution files in `.qsolution`.
-
 Files ignored by `.qignore` will be removed in all exports.
 
 **Warning**: `.qhide` is deprecated and is replaced by `.qsolution`.
+
+
+### Build hook: `.qrun.py`
+
+`.qrun.py` must be at the root of `src`.
+`qbuild` runs `.qrun.py` in each export.
+
+Arguments passed to `.qrun.py`:
+
+- `--hide-solution`: If passed, current export shouldn't contain solutions.
+- `--hide-test`: If passed, current export shouldn't contain tests.
+
+Use `.qrun.py` only if other features are not enough.
 
 ### Replacement Rules: Comment Directives
 
