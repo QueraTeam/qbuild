@@ -112,7 +112,7 @@ and solution files in `.qsolution`.
 
 Files ignored by `.qignore` will be removed in all exports.
 
-**Note**: `.qhide` is deprecated and is replaced by `.qsolution`.
+**Warning**: `.qhide` is deprecated and is replaced by `.qsolution`.
 
 ### Replacement Rules: Comment Directives
 
@@ -164,4 +164,4 @@ src/path/to/some/file.js
 src/path/to/some/file.notest.js  (`file.js` without test)
 ```
 
-**Note**: `.initial` is deprecated and is replaced by `.nosolution`.
+**Warning**: `.initial` is deprecated and is replaced by `.nosolution`.
