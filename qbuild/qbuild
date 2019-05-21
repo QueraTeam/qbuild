@@ -241,12 +241,12 @@ class Builder:
                     'is_readme': True
                 }
             },
-            {
-                'file_name': 'statement.md',
-                'extra_context': {
-                    'is_readme': False
-                }
-            }
+            # {
+            #     'file_name': 'statement.md',
+            #     'extra_context': {
+            #         'is_readme': False
+            #     }
+            # },
         ]
         context = {
             'has_initial': len(os.listdir(self.get_export_path(self.EXPORT_INITIAL))) > 0,
