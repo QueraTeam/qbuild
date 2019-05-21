@@ -1,4 +1,6 @@
 import os
+import re
+
 import sh
 
 
@@ -6,63 +8,74 @@ class NotGitRepoException(Exception):
     pass
 
 
+def _get_cwd(path):
+    if os.path.isdir(path):
+        return path
+    else:
+        return os.path.dirname(path)
+
+
 def is_inside_git_repo(path):
-    if not os.path.isdir(path):
-        return False
     try:
-        sh.git('status', _cwd=path)
+        sh.git('status', _cwd=_get_cwd(path))
         return True
     except sh.ErrorReturnCode_128:
         return False
 
 
-def _list_unignored_files(base_dir, exclude_dirs, path):
+def is_ignored_by_gitignore(path):
+    try:
+        sh.git('check-ignore', '--no-index', '-q', path, _cwd=_get_cwd(path))
+        return True
+    except sh.ErrorReturnCode_1:
+        return False
+
+
+def _list_unignored(base_dir, only_files, path):
     base, dirs, files = next(os.walk(path))
     for f in files:
         ff = os.path.join(base, f)
         if f == '.gitignore':
             yield ff
-        else:
-            try:
-                sh.git('check-ignore', '--no-index', '-q', ff, _cwd=base_dir)
-            except sh.ErrorReturnCode_1:
-                yield ff
+        elif not is_ignored_by_gitignore(ff):
+            yield ff
     for d in dirs:
         if d == '.git':
             continue
         dd = os.path.join(base, d)
-        try:
-            sh.git('check-ignore', '--no-index', '-q', dd, _cwd=base_dir)
-        except sh.ErrorReturnCode_1:
-            if not exclude_dirs:
+        if not is_ignored_by_gitignore(dd):
+            if not only_files:
                 yield dd
-            yield from _list_unignored_files(base_dir, exclude_dirs, dd)
+            yield from _list_unignored(base_dir, only_files, dd)
 
 
-def _list_all_files(path, exclude_dirs):
+def _list_all(path, only_files):
     for base, dirnames, filenames in os.walk(path):
         for filename in filenames:
             yield os.path.join(base, filename)
-        if not exclude_dirs:
+        if not only_files:
             for dirname in dirnames:
+                if dirname == '.git':
+                    continue
                 yield os.path.join(base, dirname)
 
 
-def ls_recursive(path, relative=False, exclude_gitignore=False, exclude_dirs=False):
+def ls_recursive(path, relative=False, exclude_gitignore=False, only_files=False):
     """
+    Always skips .git folder
     :param path: The path to list files (or dirs) inside it
     :param relative: If True, returned paths will be relative to `path`
     :param exclude_gitignore:  If True, only paths that are not ignored by .gitignore files will be returned.
                                In this case, `path` must be inside a git repo.
-    :param exclude_dirs: If True, only files will be returned
+    :param only_files: If True, only files will be returned (skips directories)
     :return: A list of paths inside `path`
     """
     if exclude_gitignore:
         if not is_inside_git_repo(path):
             raise NotGitRepoException
-        absolute_paths = list(_list_unignored_files(path, exclude_dirs, path))
+        absolute_paths = list(_list_unignored(path, only_files, path))
     else:
-        absolute_paths = list(_list_all_files(path, exclude_dirs))
+        absolute_paths = list(_list_all(path, only_files))
     if relative:
         return [os.path.relpath(i, start=path) for i in absolute_paths]
     else:
@@ -72,3 +85,21 @@ def ls_recursive(path, relative=False, exclude_gitignore=False, exclude_dirs=Fal
 def load_statement_templates(statement_dir):
     from jinja2 import FileSystemLoader
     return FileSystemLoader([os.path.join(os.path.dirname(__file__), 'templates'), statement_dir])
+
+
+def uncomment(commented_line, comment_style):
+    """
+    Uncomments a single line of code
+    :param commented_line: the line of code to be uncommented
+    :param comment_style: a list of length 1 or 2, e.g. ['//'], ['/*', '*/']
+    :return: the uncommented code
+    """
+    if not comment_style:
+        return commented_line
+    if len(comment_style) not in [1, 2]:
+        return commented_line
+    pattern = r'^(\s*){}\s*(.*?)\s*?'.format(re.escape(comment_style[0]))
+    if len(comment_style) == 2:
+        pattern += r'{}\s*?'.format(re.escape(comment_style[1]))
+    pattern += r'(\n?)$'
+    return re.sub(pattern, r'\1\2\3', commented_line)

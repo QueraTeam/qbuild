@@ -1,18 +1,60 @@
+{% if is_readme %}
+{% if self.name() %}
+# {% block name %}{% endblock %}
+
+
+{% endif %}
+{% if self.readme() %}
+--------------------------------------------------
+
+{% block readme %}{% endblock readme %}
+
+--------------------------------------------------
+
+{% endif %}
+{% endif %}
+{% if self.intro() %}
 {% block intro %}{% endblock %}
 
-{% block initial %}{% if has_initial %}# پروژه اولیه
+
+{% endif %}
+{% if has_initial %}
+{% block initial %}
+# پروژه اولیه
 
 پروژه اولیه را از
 [اینجا](%q_initial_url%)
-دانلود کنید.{% block structure %} ساختار فایل‌های این پروژه به صورت زیر است:
+دانلود کنید.
+{% block structure %}
+ساختار فایل‌های این پروژه به صورت زیر است:
 
 ```
 {{ initial_structure }}
 ```
-{% endblock structure %}{% endif %}{% endblock %}
-{% block details_ %}# جزئیات
+
+{% endblock structure %}
+{% endblock %}
+
+
+{% endif %}
+{% if self.run() %}
+# راه‌اندازی پروژه
+
+{% block run %}{% endblock run %}
+
+
+{% endif %}
+{% if self.details() %}
+# جزئیات
+
 {% block details %}{% endblock %}
-{%endblock details_ %}
-{% block notes_ %}# نکات
+
+
+{% endif %}
+{% if self.notes() %}
+# نکات
+
 {% block notes %}{% endblock notes %}
-{% endblock notes_ %}
+
+
+{% endif %}

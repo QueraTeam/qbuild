@@ -1,40 +1,59 @@
 #!/usr/bin/env python3
 import filecmp
+import json
 import os
 import sys
 import shutil
+from collections import OrderedDict
+from fnmatch import fnmatchcase
 
 import sh
 from jinja2 import Environment, TemplateNotFound
 
 from qbuild.color_print import Color, cprint
-from qbuild.helpers import ls_recursive, load_statement_templates
+from qbuild.helpers import ls_recursive, load_statement_templates, uncomment
 from qbuild.tree import tree
 
 
 class Builder:
-    HIDE_BEGIN = '_q_hide_from_users_begin'
-    HIDE_END = '_q_hide_from_users_end'
+    SOLUTION_COMMENT_BEGIN = ['_q_hide_from_users_begin', '_q_solution_begin']
+    TEST_COMMENT_BEGIN = ['_q_test_begin']
+    COMMENT_REPLACE = ['_q_replace']
+    COMMENT_END = ['_q_hide_from_users_end', '_q_end']
+
+    QIGNORE_FILES = ['.qignore']
+    QSOLUTION_FILES = ['.qhide', '.qsolution']
+    QTEST_FILES = ['.qtest']
+
+    NOSOLUTION_EXTENSIONS = ['.initial', '.nosolution']
+    NOTEST_EXTENSIONS = ['.notest']
+
+    EXPORT_INITIAL = {
+        'code': 'initial',
+        'export_name': '{slug}',
+        'hide_solution': True,
+        'hide_test': True
+    }
+
+    EXPORT_MODEL_SOLUTION = {
+        'code': 'model_solution',
+        'export_name': 'model_solution',
+        'hide_solution': False,
+        'hide_test': True
+    }
+
+    EXPORT_TEST = {
+        'code': 'test',
+        'export_name': 'test',
+        'hide_solution': True,
+        'hide_test': False
+    }
 
     EXPORTS = [
-        {
-            'name': '{slug}_initial',
-            'hide_solution': True,
-            'hide_test': True
-        },
-        {
-            'name': 'model_solution',
-            'hide_solution': False,
-            'hide_test': True
-        },
-        {
-            'name': 'test',
-            'hide_solution': True,
-            'hide_test': False
-        }
+        EXPORT_INITIAL,
+        EXPORT_MODEL_SOLUTION,
+        EXPORT_TEST
     ]
-
-    INITIAL_EXPORT = EXPORTS[0]
 
     def __init__(self, base_dir):
         # Creating directory paths...
@@ -52,8 +71,8 @@ class Builder:
             os.mkdir(self.QBUILD_DIR)
 
     @staticmethod
-    def hide_comments(path):
-        for item in ls_recursive(path, exclude_dirs=True):
+    def process_comments(path, comment_begin, show=None):
+        for item in ls_recursive(path, only_files=True):
             with open(item) as fp:
                 # FIXME it reads file at once. what happens for large files?
                 try:
@@ -62,67 +81,145 @@ class Builder:
                     # file is not text
                     continue
             new_content = ''
-            hiding = False
+            state = 'normal'
+            comment_style = None
             for line in lines:
-                if hiding:
-                    if Builder.HIDE_END in line:
-                        hiding = False
-                else:
-                    if Builder.HIDE_BEGIN in line:
-                        hiding = True
+                if state == 'main':
+                    if any(i in line for i in Builder.COMMENT_END):
+                        state = 'normal'
+                    elif any(i in line for i in Builder.COMMENT_REPLACE):
+                        state = 'replacement'
+                    elif show == 'main':
+                        new_content += line
+                elif state == 'replacement':
+                    if any(i in line for i in Builder.COMMENT_END):
+                        state = 'normal'
+                    elif show == 'replacement':
+                        new_content += uncomment(line, comment_style)
+                elif state == 'normal':
+                    for scb in comment_begin:
+                        if scb in line:
+                            state = 'main'
+                            comment_style = [i.strip() for i in line.split(scb) if i.strip()]
+                            break
                     else:
                         new_content += line
             with open(item, 'w') as fp:
                 fp.write(new_content)
 
     @staticmethod
-    def process_initial(path, action):
+    def process_initial(path, ext_list, action):
+        for ext in ext_list:
+            if ext not in ['.initial', '.nosolution', '.notest']:
+                raise Exception
         if action not in ['replace', 'delete']:
             raise Exception
         items = ls_recursive(path)
         items_to_hide = []
         for item in items:
-            if item + '.initial' in items:
-                items_to_hide.append(item)
-        for item in items_to_hide:
+            a, b = os.path.splitext(item)
+            for ext in ext_list:
+                if item + ext in items:
+                    items_to_hide.append((item, ext, item + ext))
+                elif a + ext + b in items:
+                    items_to_hide.append((item, ext, a + ext + b))
+        for item, ext, repl in items_to_hide:
             if action == 'replace':
                 if os.path.isdir(item):
                     shutil.rmtree(item)
                 else:
                     os.remove(item)
-                os.rename(item + '.initial', item)
+                os.rename(repl, item)
             elif action == 'delete':
-                if os.path.isdir(item + '.initial'):
-                    shutil.rmtree(item + '.initial')
+                if os.path.isdir(repl):
+                    shutil.rmtree(repl)
                 else:
-                    os.remove(item + '.initial')
+                    os.remove(repl)
 
     @staticmethod
-    def hide_ignorefile(path, ignorefile):
-        if not os.path.exists(os.path.join(path, ignorefile)):
-            return
-        try:
+    def hide_ignorefile(path, ignorefile_list):
+        for ignorefile in ignorefile_list:
+            if not os.path.exists(os.path.join(path, ignorefile)):
+                continue
+            try:
+                os.remove(os.path.join(path, '.gitignore'))
+            except FileNotFoundError:
+                pass
+            os.rename(os.path.join(path, ignorefile), os.path.join(path, '.gitignore'))
+            sh.git.init(_cwd=path)
+            sh.git.add('.', _cwd=path)
+            sh.git.clean('-xdf', _cwd=path)
+            shutil.rmtree(os.path.join(path, '.git'))
             os.remove(os.path.join(path, '.gitignore'))
-        except FileNotFoundError:
-            pass
-        os.rename(os.path.join(path, ignorefile), os.path.join(path, '.gitignore'))
-        sh.git.init(_cwd=path)
-        sh.git.add('.', _cwd=path)
-        sh.git.clean('-xdf', _cwd=path)
-        shutil.rmtree(os.path.join(path, '.git'))
-        os.remove(os.path.join(path, '.gitignore'))
+
+    @staticmethod
+    def run_qrun(path, export):
+        if not os.path.exists(os.path.join(path, '.qrun.py')):
+            return
+        args = []
+        if export['hide_solution']:
+            args.append('--hide-solution')
+        if export['hide_test']:
+            args.append('--hide-test')
+        sh.python('.qrun.py', *args, _cwd=path)
 
     def get_export_name(self, export):
-        return export['name'].format(slug=self.SLUG)
+        return export['export_name'].format(slug=self.SLUG)
 
     def get_export_path(self, export):
         return os.path.join(self.DIST, self.get_export_name(export))
 
     @staticmethod
     def delete_gitignore_files(path):
-        for item in ls_recursive(path, exclude_dirs=True):
+        for item in ls_recursive(path, only_files=True):
             if os.path.basename(item) in ['.gitignore', '.gitkeep']:
                 os.remove(item)
+
+    @staticmethod
+    def process_package_json(path, export):
+
+        def action_remove(dd, keys):
+            if type(dd) is not OrderedDict:
+                return
+            if type(keys) is str:
+                for k in list(dd.keys()):
+                    if fnmatchcase(k, keys):
+                        dd.pop(k)
+            elif type(keys) is list:
+                for i in keys:
+                    action_remove(dd, i)
+            elif type(keys) is OrderedDict:
+                for k, v in keys.items():
+                    if k in dd:
+                        action_remove(dd[k], v)
+
+        def action_add(dd, keys):
+            if type(dd) is not OrderedDict:
+                return
+            if type(keys) is not OrderedDict:
+                return
+            for k, v in keys.items():
+                if type(v) is not OrderedDict or k not in dd:
+                    dd[k] = v
+                else:
+                    action_add(dd[k], v)
+
+        for item in ls_recursive(path, only_files=True):
+            if os.path.basename(item) != 'package.json':
+                continue
+            with open(item) as fp:
+                d = json.load(fp, object_pairs_hook=OrderedDict)
+            if '//' not in d:
+                continue
+            if export['code'] in d['//']:
+                actions = d['//'][export['code']]
+                if 'remove' in actions:
+                    action_remove(d, actions['remove'])
+                if 'add' in actions:
+                    action_add(d, actions['add'])
+            d.pop('//')
+            with open(item, 'w') as fp:
+                json.dump(d, fp, indent=2)
 
     def is_built(self):
         for export in Builder.EXPORTS:
@@ -131,37 +228,67 @@ class Builder:
         return True
 
     def render_statement(self):
-        env = Environment(loader=load_statement_templates(self.STATEMENT_DIR))
+        env = Environment(
+            loader=load_statement_templates(self.STATEMENT_DIR),
+            trim_blocks=True, lstrip_blocks=True
+        )
         try:
             template = env.get_template('statement.md')
         except TemplateNotFound:
             cprint('[WARNING] "statement/statement.md" not found! Did you forget it?', color=Color.YELLOW)
             return
 
-        destination_file = os.path.join(self.BASE_DIR, 'README.md')
-        destination_file_copy = os.path.join(self.QBUILD_DIR, '.README.md.prev')
-        if os.path.isfile(destination_file) and os.path.isfile(destination_file_copy) and not filecmp.cmp(destination_file, destination_file_copy):
-            shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, 'README.md.backup'))
-            cprint('[WARNING] README.md was modified manually. README.md will be auto-generated and your changes will be overwritten. However we created a copy before overwriting: README.md.backup', color=Color.YELLOW)
+        outputs = [
+            {
+                'file_name': 'README.md',
+                'extra_context': {
+                    'is_readme': True
+                }
+            },
+            # {
+            #     'file_name': 'statement.md',
+            #     'extra_context': {
+            #         'is_readme': False
+            #     }
+            # },
+        ]
+        context = {
+            'has_initial': len(os.listdir(self.get_export_path(self.EXPORT_INITIAL))) > 0,
+            'initial_structure': tree(self.get_export_path(self.EXPORT_INITIAL), self.SLUG),
+            'solution_structure': tree(self.get_export_path(self.EXPORT_MODEL_SOLUTION), '[your-zip-file-name].zip'),
+        }
 
-        has_initial = len(os.listdir(self.get_export_path(self.INITIAL_EXPORT))) > 0
-
-        statement = template.render(has_initial=has_initial,
-                                    initial_structure=tree(self.get_export_path(self.INITIAL_EXPORT)))
-
-        attachments_dir = os.path.join(self.STATEMENT_DIR, 'attachments')
-        if os.path.isdir(attachments_dir):
-            for item in os.listdir(attachments_dir):
-                path = os.path.join(attachments_dir, item)
-                if not os.path.isfile(path):
-                    continue
-                statement = statement.replace(
-                    os.path.join('attachments', item),
-                    os.path.relpath(os.path.join(attachments_dir, item), self.BASE_DIR)
+        for output in outputs:
+            destination_file = os.path.join(self.BASE_DIR, output['file_name'])
+            destination_file_prev = os.path.join(self.QBUILD_DIR, '.{}.prev'.format(output['file_name']))
+            if os.path.isfile(destination_file) and os.path.isfile(destination_file_prev) \
+                    and not filecmp.cmp(destination_file, destination_file_prev):
+                shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, '{}.backup'.format(output['file_name'])))
+                cprint(
+                    '\n[WARNING] {file_name} was modified manually. '
+                    'It will be auto-generated and your changes will be overwritten. '
+                    'However we created a copy before overwriting: {file_name}.backup'.format(
+                        file_name=output['file_name']), color=Color.YELLOW
                 )
-        with open(destination_file, 'w') as fp:
-            fp.write(statement)
-        shutil.copy2(destination_file, destination_file_copy)
+
+            statement = template.render(
+                **context,
+                **output['extra_context']
+            )
+
+            attachments_dir = os.path.join(self.STATEMENT_DIR, 'attachments')
+            if os.path.isdir(attachments_dir):
+                for item in os.listdir(attachments_dir):
+                    path = os.path.join(attachments_dir, item)
+                    if not os.path.isfile(path):
+                        continue
+                    statement = statement.replace(
+                        os.path.join('attachments', item),
+                        os.path.relpath(os.path.join(attachments_dir, item), self.BASE_DIR)
+                    )
+            with open(destination_file, 'w') as fp:
+                fp.write(statement)
+            shutil.copy2(destination_file, destination_file_prev)
 
     def build(self):
         # initial checks
@@ -192,7 +319,7 @@ class Builder:
         if os.path.exists(self.SRC_DIR_2):
             shutil.rmtree(self.SRC_DIR_2)
         os.mkdir(self.SRC_DIR_2)
-        for item in ls_recursive(self.SRC_DIR, relative=True, exclude_gitignore=True, exclude_dirs=True):
+        for item in ls_recursive(self.SRC_DIR, relative=True, exclude_gitignore=True, only_files=True):
             d = os.path.dirname(os.path.join(self.SRC_DIR_2, item))
             if not os.path.exists(d):
                 os.makedirs(d)
@@ -203,26 +330,37 @@ class Builder:
             cprint('\nBuilding {}'.format(name), color=Color.CYAN)
             path = self.get_export_path(export)
             shutil.copytree(self.SRC_DIR_2, path)
+            self.hide_ignorefile(path, self.QIGNORE_FILES)
             if export['hide_solution']:
-                self.process_initial(path, action='replace')  # must be first
-                self.hide_ignorefile(path, '.qhide')
-                self.hide_comments(path)
+                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='replace')  # must be first
+                self.hide_ignorefile(path, self.QSOLUTION_FILES)
             else:
-                self.process_initial(path, action='delete')  # must be first
+                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='delete')  # must be first
             if export['hide_test']:
-                self.hide_ignorefile(path, '.qtest')
+                self.process_initial(path, self.NOTEST_EXTENSIONS, action='replace')  # must be first
+                self.hide_ignorefile(path, self.QTEST_FILES)
             else:
+                self.process_initial(path, self.NOTEST_EXTENSIONS, action='delete')  # must be first
                 shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
                 shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
-            for i in ['.qhide', '.qtest']:
+            if export['hide_solution']:
+                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show='replacement')
+            else:
+                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show='main')
+            if export['hide_test']:
+                self.process_comments(path, self.TEST_COMMENT_BEGIN, show='replacement')
+            else:
+                self.process_comments(path, self.TEST_COMMENT_BEGIN, show='main')
+            self.run_qrun(path, export)
+            for i in self.QSOLUTION_FILES + self.QTEST_FILES + ['.qignore', '.qrun.py']:
                 try:
                     os.remove(os.path.join(path, i))
                 except FileNotFoundError:
                     pass
             self.delete_gitignore_files(path)
+            self.process_package_json(path, export)
             cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
-        print()
 
         shutil.rmtree(self.SRC_DIR_2)
 
@@ -231,12 +369,17 @@ class Builder:
         cprint('\nBuild was successful!\n', color=Color.GREEN)
 
     def diff(self):
-        os.system('git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ '
-                  'dist/*_initial dist/model_solution | '
-                  'sed --expression="s/INITIAL\/dist\/.*_initial\///g" | '
-                  'sed --expression="s/MODEL_SOLUTION\/dist\/model_solution\///g" | '
-                  'qbuild_diff-so-fancy | '
-                  'less --tabs=4 -RF --pattern \'^(Date|added|deleted|modified): \'')
+        os.system(
+            'git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ '
+            'dist/{initial_name} dist/{model_solution_name} | '
+            'sed --expression="s/INITIAL\/dist\/{initial_name}\///g" | '
+            'sed --expression="s/MODEL_SOLUTION\/dist\/{model_solution_name}\///g" | '
+            'sed --expression="s/dist\/{initial_name}\///g" | '
+            'sed --expression="s/dist\/{model_solution_name}\///g" | '
+            'qbuild_diff-so-fancy | '
+            'less --tabs=4 -RFX'.format(initial_name=self.get_export_name(self.EXPORT_INITIAL),
+                                        model_solution_name=self.get_export_name(self.EXPORT_MODEL_SOLUTION))
+        )
 
     def main(self):
         if len(sys.argv) == 2 and sys.argv[1] == '--version':
