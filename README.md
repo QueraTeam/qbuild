@@ -32,7 +32,7 @@ challenge-name (git repo)
 
 # CLI Usage
 
-## `qbuild`: Build the challenge
+### `qbuild`: Build the challenge
 
 First, `cd` to the root of the challenge's git repository. Then run `qbuild` command. That's it!
 
@@ -45,7 +45,7 @@ Folder `dist` and file `README.md` will be generated.
 It creates folder `.qbuild` for its internal work.
 Do not push it. Add `dist` and `.qbuild` to gitignore.
 
-## `qbuild diff`
+### `qbuild diff`
 
 ```bash
 $ cd GIT-REPO
@@ -57,12 +57,12 @@ This command generates a diff between
 
 It's helpful for checking that things are set correctly.
 
-## `qbuild --version`
+### `qbuild --version`
 
 Prints currently installed version.
 
 
-## Features
+# Features
 
 ### Problem Statement
 
