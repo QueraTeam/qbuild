@@ -390,6 +390,8 @@ class Builder:
                 cprint('\nChallenge is not built. Run `qbuild` first.\n', color=Color.YELLOW)
             else:
                 self.diff()
+        elif len(sys.argv) == 3 and sys.argv[1] == 'tree':
+            print(tree(sys.argv[2]))
         else:
             self.build()
 

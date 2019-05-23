@@ -25,15 +25,15 @@
 پروژه اولیه را از
 [اینجا](%q_initial_url%)
 دانلود کنید.
-{% block structure %}
-ساختار فایل‌های این پروژه به صورت زیر است:
+{% block initial_structure %}
+ساختار فایل‌های این پروژه به صورت زیر است.
 
 ```
 {{ initial_structure }}
 ```
 
-{% endblock structure %}
-{% endblock %}
+{% endblock initial_structure %}
+{% endblock initial %}
 
 
 {% endif %}

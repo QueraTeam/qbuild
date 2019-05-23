@@ -58,6 +58,15 @@ This command generates a diff between
 
 It's helpful for checking that things are set correctly.
 
+### `qbuild tree`
+
+```bash
+$ qbuild tree path/to/some/directory
+```
+
+Use `qbuild tree` to print the tree structure of a directory.
+**Do not** use `tree` command or anything else.
+
 ### `qbuild --version`
 
 Prints currently installed version.
