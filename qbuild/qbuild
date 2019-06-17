@@ -280,12 +280,21 @@ class Builder:
             if os.path.isdir(attachments_dir):
                 for item in os.listdir(attachments_dir):
                     path = os.path.join(attachments_dir, item)
+                    rel_path = os.path.relpath(path, self.BASE_DIR)
                     if not os.path.isfile(path):
                         continue
-                    statement = statement.replace(
-                        os.path.join('attachments', item),
-                        os.path.relpath(os.path.join(attachments_dir, item), self.BASE_DIR)
-                    )
+                    file_size = os.path.getsize(path) / 1024
+                    if path.endswith('.png') and file_size > 10:
+                        cprint('[WARNING] Large PNG file detected (>10KB). '
+                               'Consider optimizing with https://compressor.io',
+                               color=Color.YELLOW)
+                        cprint('  {} ({:.1f}KB)'.format(rel_path, file_size), color=Color.YELLOW)
+                    if path.endswith('.gif') and file_size > 100:
+                        cprint('[WARNING] Large GIF file detected (>100KB). '
+                               'Consider optimizing with https://ezgif.com/optimize',
+                               color=Color.YELLOW)
+                        cprint('  {} ({:.1f}KB)'.format(rel_path, file_size), color=Color.YELLOW)
+                    statement = statement.replace(os.path.join('attachments', item), rel_path)
             with open(destination_file, 'w') as fp:
                 fp.write(statement)
             shutil.copy2(destination_file, destination_file_prev)
@@ -311,6 +320,10 @@ class Builder:
             with open(os.path.join(self.SRC_DIR, '.qtest')) as fp:
                 if not fp.read().strip():
                     cprint('[WARNING] "src/.qtest" is empty! Did you forget it?', color=Color.YELLOW)
+        with open(os.path.join(self.BASE_DIR, 'tester_config.json')) as fp:
+            if 'solution_signature' not in fp.read():
+                cprint('[WARNING] "solution_signature" is missing from tester_config.json! Did you forget it?',
+                       color=Color.YELLOW)
 
         # copy src (except ignored files) to self.SRC_DIR_2 (dist/_copy__src)
         if os.path.exists(self.DIST):
@@ -364,6 +377,7 @@ class Builder:
 
         shutil.rmtree(self.SRC_DIR_2)
 
+        cprint('\nRendering statement', color=Color.CYAN)
         self.render_statement()
 
         cprint('\nBuild was successful!\n', color=Color.GREEN)
