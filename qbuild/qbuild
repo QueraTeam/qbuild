@@ -11,7 +11,7 @@ import sh
 from jinja2 import Environment, TemplateNotFound
 
 from qbuild.color_print import Color, cprint
-from qbuild.helpers import ls_recursive, load_statement_templates, uncomment
+from qbuild.helpers import ls_recursive, load_statement_templates, uncomment, get_comment_style
 from qbuild.tree import tree
 
 
@@ -81,7 +81,7 @@ class Builder:
                     # file is not text
                     continue
             new_content = ''
-            state = 'normal'
+            state = 'normal'  # states: normal, main, replacement
             comment_style = None
             for line in lines:
                 if state == 'main':
@@ -100,7 +100,7 @@ class Builder:
                     for scb in comment_begin:
                         if scb in line:
                             state = 'main'
-                            comment_style = [i.strip() for i in line.split(scb) if i.strip()]
+                            comment_style = get_comment_style(line, scb)
                             break
                     else:
                         new_content += line

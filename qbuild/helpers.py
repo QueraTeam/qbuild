@@ -87,19 +87,23 @@ def load_statement_templates(statement_dir):
     return FileSystemLoader([os.path.join(os.path.dirname(__file__), 'templates'), statement_dir])
 
 
+def get_comment_style(commented_line, scb):
+    comment_parts = commented_line.split(scb)
+    if len(comment_parts) != 2:
+        raise Exception
+    ss, ff = comment_parts[0].lstrip(), comment_parts[1].rstrip()
+    s, f = ss.rstrip(), ff.lstrip()
+    return [s, ss[len(s):], ff[:-len(f)], f]
+
+
 def uncomment(commented_line, comment_style):
     """
     Uncomments a single line of code
     :param commented_line: the line of code to be uncommented
-    :param comment_style: a list of length 1 or 2, e.g. ['//'], ['/*', '*/']
+    :param comment_style: a list of length 4, e.g. ['//', ' ', '', ''], ['/*', ' ', ' ', '*/']
     :return: the uncommented code
     """
-    if not comment_style:
-        return commented_line
-    if len(comment_style) not in [1, 2]:
-        return commented_line
-    pattern = r'^(\s*){}\s*(.*?)\s*?'.format(re.escape(comment_style[0]))
-    if len(comment_style) == 2:
-        pattern += r'{}\s*?'.format(re.escape(comment_style[1]))
-    pattern += r'(\n?)$'
+    if not comment_style or len(comment_style) != 4:
+        raise Exception
+    pattern = r'^(\s*){}(?:{})?(.*?)(?:{})?{}\s*?(\n?)$'.format(*[re.escape(i) for i in comment_style])
     return re.sub(pattern, r'\1\2\3', commented_line)
