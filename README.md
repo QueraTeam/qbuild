@@ -42,6 +42,12 @@ $ cd GIT-REPO
 $ qbuild
 ```
 
+For `jupyter` problems if you need generate nonquera initial:
+
+```bash
+$ qbuild --jupyter
+```
+
 Folder `dist` and file `README.md` will be generated.
 It creates folder `.qbuild` for its internal work.
 Do not push it. Add `dist` and `.qbuild` to gitignore.

@@ -6,10 +6,9 @@ import sys
 import shutil
 from collections import OrderedDict
 from fnmatch import fnmatchcase
-
+from qbuild_jupyter import converter as jupyter_converter
 import sh
 from jinja2 import Environment, TemplateNotFound
-
 from qbuild.color_print import Color, cprint
 from qbuild.helpers import ls_recursive, load_statement_templates, uncomment, get_comment_style
 from qbuild.tree import tree
@@ -311,7 +310,23 @@ class Builder:
                 fp.write(statement)
             shutil.copy2(destination_file, destination_file_prev)
 
-    def build(self):
+    def validate_jupyter(self):
+        required_files = [
+            'solution.ipynb',
+            'dumper.py',
+        ]
+        is_valid, message = True, 'OK'
+
+        for rf in required_files:
+            rf_path = os.path.join(self.SRC_DIR, rf)
+            if not os.path.exists(rf_path):
+                is_valid = False
+                message = f'jupyter problems require a file that not found: "{rf}"'
+                break
+
+        return is_valid, message
+
+    def build(self, is_jupyter_problem=False):
         # initial checks
         cprint('Performing initial checks...', color=Color.CYAN)
         if not os.path.isdir(self.SRC_DIR):
@@ -326,6 +341,11 @@ class Builder:
         if not os.path.isdir(os.path.join(self.BASE_DIR, '.git')):
             cprint('This is not a git repo!', color=Color.RED)
             return
+        if is_jupyter_problem:
+            is_valid, message = self.validate_jupyter()
+            if not is_valid:
+                cprint(message, color=Color.RED)
+                return
         if not os.path.isfile(os.path.join(self.SRC_DIR, '.qtest')):
             cprint('[WARNING] "src/.qtest" not found! Did you forget it?', color=Color.YELLOW)
         else:
@@ -389,6 +409,18 @@ class Builder:
             cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
 
+            # export jupyter nonquera
+            if is_jupyter_problem and export.get('code') == 'initial':
+                cprint(f'\nBuilding jupyter nonquera initial for {name}', color=Color.CYAN)
+                nonquera_extract_dir_path, nonquera_extract_zip_path = jupyter_converter.convert_initial_to_nonquera(
+                    path=path,
+                    mode='dir',
+                    nonquera_dir=self.DIST
+                )
+                nonquera_zip_name = os.path.basename(nonquera_extract_zip_path)
+                cprint(f'Jupyter nonquera initial was successful: {nonquera_zip_name}', color=Color.CYAN)
+
+
         shutil.rmtree(self.SRC_DIR_2)
 
         cprint('\nRendering statement', color=Color.CYAN)
@@ -420,8 +452,10 @@ class Builder:
                 self.diff()
         elif len(sys.argv) == 3 and sys.argv[1] == 'tree':
             print(tree(sys.argv[2]))
+        elif len(sys.argv) == 2 and sys.argv[1] == '--jupyter':
+            self.build(is_jupyter_problem=True)
         else:
-            self.build()
+            self.build(is_jupyter_problem=False)
 
 
 if __name__ == "__main__":
