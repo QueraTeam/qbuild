@@ -21,10 +21,7 @@ setup(
     install_requires=[
         'sh',
         'Jinja2',
-        'qbuild-jupyter @ git+https://github.com/peynaj/qbuild-jupyter',
-        # TODO: switch to 'git+https://gitlab.com/codamooz/challenges/qbuild-jupyter' ;
-        #       if this repos is completed and you have access to it.
-        # TODO: How to define version of qbuild-jupyter to install: '0.1.2'
+        'qbuild-jupyter @ git+https://gitlab.com/codamooz/challenges/qbuild-jupyter',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
