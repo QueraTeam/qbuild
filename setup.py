@@ -21,7 +21,7 @@ setup(
     install_requires=[
         'sh',
         'Jinja2',
-        'qbuild-jupyter @ git+https://gitlab.com/codamooz/challenges/qbuild-jupyter',
+        'qbuild-jupyter @ git+ssh://git@gitlab.com/codamooz/challenges/qbuild-jupyter',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

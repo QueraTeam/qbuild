@@ -10,6 +10,14 @@ $ cd qbuild
 $ sudo pip3 install . 
 ```
 
+If you have a problem with pulling `qbuild-jupyter` dependency, run the following commands:
+
+```bash
+$ git clone git@gitlab.com:codamooz/challenges/qbuild-jupyter.git
+$ cd qbuild-jupyter
+$ sudo pip3 install . 
+``` 
+
 # Challenge Structure
 
 ```
