@@ -412,14 +412,13 @@ class Builder:
             # export jupyter nonquera
             if is_jupyter_problem and export.get('code') == 'initial':
                 cprint(f'\nBuilding jupyter nonquera initial for {name}', color=Color.CYAN)
-                nonquera_extract_dir_path, nonquera_extract_zip_path = jupyter_converter.convert_initial_to_nonquera(
+                nonquera_extract_dir_path, nonquera_extract_zip_path = jupyter_converter.convert_initial_to_nonquera_in_path(
                     path=path,
                     mode='dir',
                     nonquera_dir=self.DIST
                 )
                 nonquera_zip_name = os.path.basename(nonquera_extract_zip_path)
                 cprint(f'Jupyter nonquera initial was successful: {nonquera_zip_name}', color=Color.CYAN)
-
 
         shutil.rmtree(self.SRC_DIR_2)
 
