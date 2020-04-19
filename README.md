@@ -42,6 +42,12 @@ $ cd GIT-REPO
 $ qbuild
 ```
 
+For `jupyter` problems if you need generate nonquera initial:
+
+```bash
+$ qbuild --jupyter
+```
+
 Folder `dist` and file `README.md` will be generated.
 It creates folder `.qbuild` for its internal work.
 Do not push it. Add `dist` and `.qbuild` to gitignore.
@@ -112,11 +118,12 @@ You can use variables `has_initial`, `initial_structure`, `solution_structure`.
     {% endblock notes %}
 
 
-### Ignore files: `.qignore`, `.qsolution`, `.qtest`
+### Ignore files: `.qignore`, `.qsolution`, `.qtest`, `.qsampletest`
 
 These files must be at the root of `src` folder.
 Their syntax is like gitignore.
 You can specify test files in `.qtest`
+You can specify sample test files in `.qsampletest`. This files just hide in `model_solution` export.
 and solution files in `.qsolution`.
 Files ignored by `.qignore` will be removed in all exports.
 

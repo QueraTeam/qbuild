@@ -6,10 +6,9 @@ import sys
 import shutil
 from collections import OrderedDict
 from fnmatch import fnmatchcase
-
+from qbuild_jupyter import converter as jupyter_converter
 import sh
 from jinja2 import Environment, TemplateNotFound
-
 from qbuild.color_print import Color, cprint
 from qbuild.helpers import ls_recursive, load_statement_templates, uncomment, get_comment_style
 from qbuild.tree import tree
@@ -24,7 +23,11 @@ class Builder:
     QIGNORE_FILES = ['.qignore']
     QSOLUTION_FILES = ['.qhide', '.qsolution']
     QTEST_FILES = ['.qtest']
-
+    QSAMPLETEST_FILES = ['.qsampletest']
+    QRUN_FILES = ['.qrun.py']
+    
+    DOTQ_FILES = QIGNORE_FILES + QSOLUTION_FILES + QTEST_FILES + QSAMPLETEST_FILES + QRUN_FILES
+    
     NOSOLUTION_EXTENSIONS = ['.initial', '.nosolution']
     NOTEST_EXTENSIONS = ['.notest']
 
@@ -32,21 +35,27 @@ class Builder:
         'code': 'initial',
         'export_name': '{slug}',
         'hide_solution': True,
-        'hide_test': True
+        'hide_test': True,
+        'hide_sampletest': False,
+        'hide_dotq_files': True,
     }
 
     EXPORT_MODEL_SOLUTION = {
         'code': 'model_solution',
         'export_name': 'model_solution',
         'hide_solution': False,
-        'hide_test': True
+        'hide_test': True,
+        'hide_sampletest': True,
+        'hide_dotq_files': True,
     }
 
     EXPORT_TEST = {
         'code': 'test',
         'export_name': 'test',
         'hide_solution': True,
-        'hide_test': False
+        'hide_test': False,
+        'hide_sampletest': False,
+        'hide_dotq_files': False,
     }
 
     EXPORTS = [
@@ -161,6 +170,8 @@ class Builder:
             args.append('--hide-solution')
         if export['hide_test']:
             args.append('--hide-test')
+        if export['hide_sampletest']:
+            args.append('--hide-sampletest')
         sh.python('.qrun.py', *args, _cwd=path)
 
     def get_export_name(self, export):
@@ -299,7 +310,23 @@ class Builder:
                 fp.write(statement)
             shutil.copy2(destination_file, destination_file_prev)
 
-    def build(self):
+    def validate_jupyter(self):
+        required_files = [
+            'solution.ipynb',
+            'dumper.py',
+        ]
+        is_valid, message = True, 'OK'
+
+        for rf in required_files:
+            rf_path = os.path.join(self.SRC_DIR, rf)
+            if not os.path.exists(rf_path):
+                is_valid = False
+                message = f'jupyter problems require a file that not found: "{rf}"'
+                break
+
+        return is_valid, message
+
+    def build(self, is_jupyter_problem=False):
         # initial checks
         cprint('Performing initial checks...', color=Color.CYAN)
         if not os.path.isdir(self.SRC_DIR):
@@ -314,6 +341,11 @@ class Builder:
         if not os.path.isdir(os.path.join(self.BASE_DIR, '.git')):
             cprint('This is not a git repo!', color=Color.RED)
             return
+        if is_jupyter_problem:
+            is_valid, message = self.validate_jupyter()
+            if not is_valid:
+                cprint(message, color=Color.RED)
+                return
         if not os.path.isfile(os.path.join(self.SRC_DIR, '.qtest')):
             cprint('[WARNING] "src/.qtest" not found! Did you forget it?', color=Color.YELLOW)
         else:
@@ -343,7 +375,6 @@ class Builder:
             cprint('\nBuilding {}'.format(name), color=Color.CYAN)
             path = self.get_export_path(export)
             shutil.copytree(self.SRC_DIR_2, path)
-            self.hide_ignorefile(path, self.QIGNORE_FILES)
             if export['hide_solution']:
                 self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='replace')  # must be first
                 self.hide_ignorefile(path, self.QSOLUTION_FILES)
@@ -364,16 +395,30 @@ class Builder:
                 self.process_comments(path, self.TEST_COMMENT_BEGIN, show='replacement')
             else:
                 self.process_comments(path, self.TEST_COMMENT_BEGIN, show='main')
+            if export['hide_sampletest']:
+                self.hide_ignorefile(path, self.QSAMPLETEST_FILES)
             self.run_qrun(path, export)
-            for i in self.QSOLUTION_FILES + self.QTEST_FILES + ['.qignore', '.qrun.py']:
-                try:
-                    os.remove(os.path.join(path, i))
-                except FileNotFoundError:
-                    pass
+            if export['hide_dotq_files']:
+                for i in self.DOTQ_FILES:
+                    try:
+                        os.remove(os.path.join(path, i))
+                    except FileNotFoundError:
+                        pass
             self.delete_gitignore_files(path)
             self.process_package_json(path, export)
             cprint('Creating {}.zip'.format(name), color=Color.CYAN)
             shutil.make_archive(path, 'zip', path)
+
+            # export jupyter nonquera
+            if is_jupyter_problem and export.get('code') == 'initial':
+                cprint(f'\nBuilding jupyter nonquera initial for {name}', color=Color.CYAN)
+                nonquera_extract_dir_path, nonquera_extract_zip_path = jupyter_converter.convert_initial_to_nonquera_in_path(
+                    path=path,
+                    mode='dir',
+                    nonquera_dir=self.DIST
+                )
+                nonquera_zip_name = os.path.basename(nonquera_extract_zip_path)
+                cprint(f'Jupyter nonquera initial was successful: {nonquera_zip_name}', color=Color.CYAN)
 
         shutil.rmtree(self.SRC_DIR_2)
 
@@ -406,8 +451,10 @@ class Builder:
                 self.diff()
         elif len(sys.argv) == 3 and sys.argv[1] == 'tree':
             print(tree(sys.argv[2]))
+        elif len(sys.argv) == 2 and sys.argv[1] == '--jupyter':
+            self.build(is_jupyter_problem=True)
         else:
-            self.build()
+            self.build(is_jupyter_problem=False)
 
 
 if __name__ == "__main__":
