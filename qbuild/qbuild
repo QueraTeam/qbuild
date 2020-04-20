@@ -6,7 +6,6 @@ import sys
 import shutil
 from collections import OrderedDict
 from fnmatch import fnmatchcase
-from qbuild_jupyter import converter as jupyter_converter
 import sh
 from jinja2 import Environment, TemplateNotFound
 from qbuild.color_print import Color, cprint
@@ -25,9 +24,9 @@ class Builder:
     QTEST_FILES = ['.qtest']
     QSAMPLETEST_FILES = ['.qsampletest']
     QRUN_FILES = ['.qrun.py']
-    
+
     DOTQ_FILES = QIGNORE_FILES + QSOLUTION_FILES + QTEST_FILES + QSAMPLETEST_FILES + QRUN_FILES
-    
+
     NOSOLUTION_EXTENSIONS = ['.initial', '.nosolution']
     NOTEST_EXTENSIONS = ['.notest']
 
@@ -411,6 +410,7 @@ class Builder:
 
             # export jupyter nonquera
             if is_jupyter_problem and export.get('code') == 'initial':
+                from qbuild_jupyter import converter as jupyter_converter
                 cprint(f'\nBuilding jupyter nonquera initial for {name}', color=Color.CYAN)
                 nonquera_extract_dir_path, nonquera_extract_zip_path = jupyter_converter.convert_initial_to_nonquera_in_path(
                     path=path,
@@ -452,7 +452,15 @@ class Builder:
         elif len(sys.argv) == 3 and sys.argv[1] == 'tree':
             print(tree(sys.argv[2]))
         elif len(sys.argv) == 2 and sys.argv[1] == '--jupyter':
-            self.build(is_jupyter_problem=True)
+            try:
+                from qbuild_jupyter import converter as jupyter_converter
+                self.build(is_jupyter_problem=True)
+            except ModuleNotFoundError:
+                cprint(
+                    '\n`qbuild-jupyter` is not installed yet. please install it with this command:\n'
+                    '        pip3 install git+ssh://git@gitlab.com/codamooz/challenges/qbuild-jupyter\n',
+                    color=Color.RED
+                )
         else:
             self.build(is_jupyter_problem=False)
 

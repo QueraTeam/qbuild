@@ -20,8 +20,7 @@ setup(
     scripts=['qbuild/qbuild', 'qbuild/qbuild_diff-so-fancy'],
     install_requires=[
         'sh',
-        'Jinja2',
-        'qbuild-jupyter @ git+ssh://git@gitlab.com/codamooz/challenges/qbuild-jupyter',
+        'Jinja2'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
