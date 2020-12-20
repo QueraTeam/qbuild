@@ -23,7 +23,7 @@
 # پروژه اولیه
 
 پروژه اولیه را از
-[اینجا](%q_initial_url%)
+%problem.initial_project%
 دانلود کنید.
 {% block initial_structure %}
 ساختار فایل‌های این پروژه به صورت زیر است.
