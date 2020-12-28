@@ -17,7 +17,7 @@ def _get_cwd(path):
 
 def is_inside_git_repo(path):
     try:
-        sh.git('status', _cwd=_get_cwd(path))
+        sh.git("status", _cwd=_get_cwd(path))
         return True
     except sh.ErrorReturnCode_128:
         return False
@@ -25,7 +25,7 @@ def is_inside_git_repo(path):
 
 def is_ignored_by_gitignore(path):
     try:
-        sh.git('check-ignore', '--no-index', '-q', path, _cwd=_get_cwd(path))
+        sh.git("check-ignore", "--no-index", "-q", path, _cwd=_get_cwd(path))
         return True
     except sh.ErrorReturnCode_1:
         return False
@@ -35,12 +35,12 @@ def _list_unignored(base_dir, only_files, path):
     base, dirs, files = next(os.walk(path))
     for f in files:
         ff = os.path.join(base, f)
-        if f == '.gitignore':
+        if f == ".gitignore":
             yield ff
         elif not is_ignored_by_gitignore(ff):
             yield ff
     for d in dirs:
-        if d == '.git':
+        if d == ".git":
             continue
         dd = os.path.join(base, d)
         if not is_ignored_by_gitignore(dd):
@@ -55,7 +55,7 @@ def _list_all(path, only_files):
             yield os.path.join(base, filename)
         if not only_files:
             for dirname in dirnames:
-                if dirname == '.git':
+                if dirname == ".git":
                     continue
                 yield os.path.join(base, dirname)
 
@@ -84,7 +84,8 @@ def ls_recursive(path, relative=False, exclude_gitignore=False, only_files=False
 
 def load_statement_templates(statement_dir):
     from jinja2 import FileSystemLoader
-    return FileSystemLoader([os.path.join(os.path.dirname(__file__), 'templates'), statement_dir])
+
+    return FileSystemLoader([os.path.join(os.path.dirname(__file__), "templates"), statement_dir])
 
 
 def get_comment_style(commented_line, scb):
@@ -93,7 +94,7 @@ def get_comment_style(commented_line, scb):
         raise Exception
     ss, ff = comment_parts[0].lstrip(), comment_parts[1].rstrip()
     s, f = ss.rstrip(), ff.lstrip()
-    return [s, ss[len(s):], ff[:-len(f)], f]
+    return [s, ss[len(s) :], ff[: -len(f)], f]
 
 
 def uncomment(commented_line, comment_style):
@@ -105,5 +106,5 @@ def uncomment(commented_line, comment_style):
     """
     if not comment_style or len(comment_style) != 4:
         raise Exception
-    pattern = r'^(\s*){}(?:{})?(.*?)(?:{})?{}\s*?(\n?)$'.format(*[re.escape(i) for i in comment_style])
-    return re.sub(pattern, r'\1\2\3', commented_line)
+    pattern = r"^(\s*){}(?:{})?(.*?)(?:{})?{}\s*?(\n?)$".format(*[re.escape(i) for i in comment_style])
+    return re.sub(pattern, r"\1\2\3", commented_line)

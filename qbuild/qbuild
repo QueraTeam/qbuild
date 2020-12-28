@@ -14,66 +14,62 @@ from qbuild.tree import tree
 
 
 class Builder:
-    SOLUTION_COMMENT_BEGIN = ['_q_hide_from_users_begin', '_q_solution_begin']
-    TEST_COMMENT_BEGIN = ['_q_test_begin']
-    COMMENT_REPLACE = ['_q_replace']
-    COMMENT_END = ['_q_hide_from_users_end', '_q_end']
+    SOLUTION_COMMENT_BEGIN = ["_q_hide_from_users_begin", "_q_solution_begin"]
+    TEST_COMMENT_BEGIN = ["_q_test_begin"]
+    COMMENT_REPLACE = ["_q_replace"]
+    COMMENT_END = ["_q_hide_from_users_end", "_q_end"]
 
-    QIGNORE_FILES = ['.qignore']
-    QSOLUTION_FILES = ['.qhide', '.qsolution']
-    QTEST_FILES = ['.qtest']
-    QSAMPLETEST_FILES = ['.qsampletest']
-    QRUN_FILES = ['.qrun.py']
+    QIGNORE_FILES = [".qignore"]
+    QSOLUTION_FILES = [".qhide", ".qsolution"]
+    QTEST_FILES = [".qtest"]
+    QSAMPLETEST_FILES = [".qsampletest"]
+    QRUN_FILES = [".qrun.py"]
 
     DOTQ_FILES = QIGNORE_FILES + QSOLUTION_FILES + QTEST_FILES + QSAMPLETEST_FILES + QRUN_FILES
 
-    NOSOLUTION_EXTENSIONS = ['.initial', '.nosolution']
-    NOTEST_EXTENSIONS = ['.notest']
+    NOSOLUTION_EXTENSIONS = [".initial", ".nosolution"]
+    NOTEST_EXTENSIONS = [".notest"]
 
     EXPORT_INITIAL = {
-        'code': 'initial',
-        'export_name': '{slug}',
-        'hide_solution': True,
-        'hide_test': True,
-        'hide_sampletest': False,
-        'hide_dotq_files': True,
+        "code": "initial",
+        "export_name": "{slug}",
+        "hide_solution": True,
+        "hide_test": True,
+        "hide_sampletest": False,
+        "hide_dotq_files": True,
     }
 
     EXPORT_MODEL_SOLUTION = {
-        'code': 'model_solution',
-        'export_name': 'model_solution',
-        'hide_solution': False,
-        'hide_test': True,
-        'hide_sampletest': True,
-        'hide_dotq_files': True,
+        "code": "model_solution",
+        "export_name": "model_solution",
+        "hide_solution": False,
+        "hide_test": True,
+        "hide_sampletest": True,
+        "hide_dotq_files": True,
     }
 
     EXPORT_TEST = {
-        'code': 'test',
-        'export_name': 'test',
-        'hide_solution': True,
-        'hide_test': False,
-        'hide_sampletest': False,
-        'hide_dotq_files': False,
+        "code": "test",
+        "export_name": "test",
+        "hide_solution": True,
+        "hide_test": False,
+        "hide_sampletest": False,
+        "hide_dotq_files": False,
     }
 
-    EXPORTS = [
-        EXPORT_INITIAL,
-        EXPORT_MODEL_SOLUTION,
-        EXPORT_TEST
-    ]
+    EXPORTS = [EXPORT_INITIAL, EXPORT_MODEL_SOLUTION, EXPORT_TEST]
 
     def __init__(self, base_dir):
         # Creating directory paths...
         self.BASE_DIR = base_dir
         self.SLUG = os.path.basename(self.BASE_DIR)
-        self.SRC_DIR = os.path.join(self.BASE_DIR, 'src')
+        self.SRC_DIR = os.path.join(self.BASE_DIR, "src")
 
-        self.DIST = os.path.join(self.BASE_DIR, 'dist')
-        self.SRC_DIR_2 = os.path.join(self.DIST, '_copy__src')
+        self.DIST = os.path.join(self.BASE_DIR, "dist")
+        self.SRC_DIR_2 = os.path.join(self.DIST, "_copy__src")
 
-        self.QBUILD_DIR = os.path.join(self.BASE_DIR, '.qbuild')
-        self.STATEMENT_DIR = os.path.join(self.BASE_DIR, 'statement')
+        self.QBUILD_DIR = os.path.join(self.BASE_DIR, ".qbuild")
+        self.STATEMENT_DIR = os.path.join(self.BASE_DIR, "statement")
 
         if not os.path.isdir(self.QBUILD_DIR):
             os.mkdir(self.QBUILD_DIR)
@@ -88,39 +84,39 @@ class Builder:
                 except UnicodeDecodeError:
                     # file is not text
                     continue
-            new_content = ''
-            state = 'normal'  # states: normal, main, replacement
+            new_content = ""
+            state = "normal"  # states: normal, main, replacement
             comment_style = None
             for line in lines:
-                if state == 'main':
+                if state == "main":
                     if any(i in line for i in Builder.COMMENT_END):
-                        state = 'normal'
+                        state = "normal"
                     elif any(i in line for i in Builder.COMMENT_REPLACE):
-                        state = 'replacement'
-                    elif show == 'main':
+                        state = "replacement"
+                    elif show == "main":
                         new_content += line
-                elif state == 'replacement':
+                elif state == "replacement":
                     if any(i in line for i in Builder.COMMENT_END):
-                        state = 'normal'
-                    elif show == 'replacement':
+                        state = "normal"
+                    elif show == "replacement":
                         new_content += uncomment(line, comment_style)
-                elif state == 'normal':
+                elif state == "normal":
                     for scb in comment_begin:
                         if scb in line:
-                            state = 'main'
+                            state = "main"
                             comment_style = get_comment_style(line, scb)
                             break
                     else:
                         new_content += line
-            with open(item, 'w') as fp:
+            with open(item, "w") as fp:
                 fp.write(new_content)
 
     @staticmethod
     def process_initial(path, ext_list, action):
         for ext in ext_list:
-            if ext not in ['.initial', '.nosolution', '.notest']:
+            if ext not in [".initial", ".nosolution", ".notest"]:
                 raise Exception
-        if action not in ['replace', 'delete']:
+        if action not in ["replace", "delete"]:
             raise Exception
         items = ls_recursive(path)
         items_to_hide = []
@@ -132,13 +128,13 @@ class Builder:
                 elif a + ext + b in items:
                     items_to_hide.append((item, ext, a + ext + b))
         for item, ext, repl in items_to_hide:
-            if action == 'replace':
+            if action == "replace":
                 if os.path.isdir(item):
                     shutil.rmtree(item)
                 else:
                     os.remove(item)
                 os.rename(repl, item)
-            elif action == 'delete':
+            elif action == "delete":
                 if os.path.isdir(repl):
                     shutil.rmtree(repl)
                 else:
@@ -150,31 +146,31 @@ class Builder:
             if not os.path.exists(os.path.join(path, ignorefile)):
                 continue
             try:
-                os.remove(os.path.join(path, '.gitignore'))
+                os.remove(os.path.join(path, ".gitignore"))
             except FileNotFoundError:
                 pass
-            os.rename(os.path.join(path, ignorefile), os.path.join(path, '.gitignore'))
+            os.rename(os.path.join(path, ignorefile), os.path.join(path, ".gitignore"))
             sh.git.init(_cwd=path)
-            sh.git.add('.', _cwd=path)
-            sh.git.clean('-xdf', _cwd=path)
-            shutil.rmtree(os.path.join(path, '.git'))
-            os.remove(os.path.join(path, '.gitignore'))
+            sh.git.add(".", _cwd=path)
+            sh.git.clean("-xdf", _cwd=path)
+            shutil.rmtree(os.path.join(path, ".git"))
+            os.remove(os.path.join(path, ".gitignore"))
 
     @staticmethod
     def run_qrun(path, export):
-        if not os.path.exists(os.path.join(path, '.qrun.py')):
+        if not os.path.exists(os.path.join(path, ".qrun.py")):
             return
         args = []
-        if export['hide_solution']:
-            args.append('--hide-solution')
-        if export['hide_test']:
-            args.append('--hide-test')
-        if export['hide_sampletest']:
-            args.append('--hide-sampletest')
-        sh.python('.qrun.py', *args, _cwd=path)
+        if export["hide_solution"]:
+            args.append("--hide-solution")
+        if export["hide_test"]:
+            args.append("--hide-test")
+        if export["hide_sampletest"]:
+            args.append("--hide-sampletest")
+        sh.python(".qrun.py", *args, _cwd=path)
 
     def get_export_name(self, export):
-        return export['export_name'].format(slug=self.SLUG)
+        return export["export_name"].format(slug=self.SLUG)
 
     def get_export_path(self, export):
         return os.path.join(self.DIST, self.get_export_name(export))
@@ -182,12 +178,11 @@ class Builder:
     @staticmethod
     def delete_gitignore_files(path):
         for item in ls_recursive(path, only_files=True):
-            if os.path.basename(item) in ['.gitignore', '.gitkeep']:
+            if os.path.basename(item) in [".gitignore", ".gitkeep"]:
                 os.remove(item)
 
     @staticmethod
     def process_package_json(path, export):
-
         def action_remove(dd, keys):
             if type(dd) is not OrderedDict:
                 return
@@ -215,20 +210,20 @@ class Builder:
                     action_add(dd[k], v)
 
         for item in ls_recursive(path, only_files=True):
-            if os.path.basename(item) != 'package.json':
+            if os.path.basename(item) != "package.json":
                 continue
             with open(item) as fp:
-                d = json.load(fp, object_pairs_hook=OrderedDict)
-            if '//' not in d:
+                d = json.load(fp)
+            if "//" not in d:
                 continue
-            if export['code'] in d['//']:
-                actions = d['//'][export['code']]
-                if 'remove' in actions:
-                    action_remove(d, actions['remove'])
-                if 'add' in actions:
-                    action_add(d, actions['add'])
-            d.pop('//')
-            with open(item, 'w') as fp:
+            if export["code"] in d["//"]:
+                actions = d["//"][export["code"]]
+                if "remove" in actions:
+                    action_remove(d, actions["remove"])
+                if "add" in actions:
+                    action_add(d, actions["add"])
+            d.pop("//")
+            with open(item, "w") as fp:
                 json.dump(d, fp, indent=2)
 
     def is_built(self):
@@ -238,23 +233,15 @@ class Builder:
         return True
 
     def render_statement(self):
-        env = Environment(
-            loader=load_statement_templates(self.STATEMENT_DIR),
-            trim_blocks=True, lstrip_blocks=True
-        )
+        env = Environment(loader=load_statement_templates(self.STATEMENT_DIR), trim_blocks=True, lstrip_blocks=True)
         try:
-            template = env.get_template('statement.md')
+            template = env.get_template("statement.md")
         except TemplateNotFound:
             cprint('[WARNING] "statement/statement.md" not found! Did you forget it?', color=Color.YELLOW)
             return
 
         outputs = [
-            {
-                'file_name': 'README.md',
-                'extra_context': {
-                    'is_readme': True
-                }
-            },
+            {"file_name": "README.md", "extra_context": {"is_readme": True}},
             # {
             #     'file_name': 'statement.md',
             #     'extra_context': {
@@ -263,30 +250,32 @@ class Builder:
             # },
         ]
         context = {
-            'has_initial': len(os.listdir(self.get_export_path(self.EXPORT_INITIAL))) > 0,
-            'initial_structure': tree(self.get_export_path(self.EXPORT_INITIAL), self.SLUG),
-            'solution_structure': tree(self.get_export_path(self.EXPORT_MODEL_SOLUTION), '[your-zip-file-name].zip'),
+            "has_initial": len(os.listdir(self.get_export_path(self.EXPORT_INITIAL))) > 0,
+            "initial_structure": tree(self.get_export_path(self.EXPORT_INITIAL), self.SLUG),
+            "solution_structure": tree(self.get_export_path(self.EXPORT_MODEL_SOLUTION), "[your-zip-file-name].zip"),
         }
 
         for output in outputs:
-            destination_file = os.path.join(self.BASE_DIR, output['file_name'])
-            destination_file_prev = os.path.join(self.QBUILD_DIR, '.{}.prev'.format(output['file_name']))
-            if os.path.isfile(destination_file) and os.path.isfile(destination_file_prev) \
-                    and not filecmp.cmp(destination_file, destination_file_prev):
-                shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, '{}.backup'.format(output['file_name'])))
+            destination_file = os.path.join(self.BASE_DIR, output["file_name"])
+            destination_file_prev = os.path.join(self.QBUILD_DIR, ".{}.prev".format(output["file_name"]))
+            if (
+                os.path.isfile(destination_file)
+                and os.path.isfile(destination_file_prev)
+                and not filecmp.cmp(destination_file, destination_file_prev)
+            ):
+                shutil.copyfile(destination_file, os.path.join(self.BASE_DIR, "{}.backup".format(output["file_name"])))
                 cprint(
-                    '\n[WARNING] {file_name} was modified manually. '
-                    'It will be auto-generated and your changes will be overwritten. '
-                    'However we created a copy before overwriting: {file_name}.backup'.format(
-                        file_name=output['file_name']), color=Color.YELLOW
+                    "\n[WARNING] {file_name} was modified manually. "
+                    "It will be auto-generated and your changes will be overwritten. "
+                    "However we created a copy before overwriting: {file_name}.backup".format(
+                        file_name=output["file_name"]
+                    ),
+                    color=Color.YELLOW,
                 )
 
-            statement = template.render(
-                **context,
-                **output['extra_context']
-            )
+            statement = template.render(**context, **output["extra_context"])
 
-            attachments_dir = os.path.join(self.STATEMENT_DIR, 'attachments')
+            attachments_dir = os.path.join(self.STATEMENT_DIR, "attachments")
             if os.path.isdir(attachments_dir):
                 for item in os.listdir(attachments_dir):
                     path = os.path.join(attachments_dir, item)
@@ -294,27 +283,31 @@ class Builder:
                     if not os.path.isfile(path):
                         continue
                     file_size = os.path.getsize(path) / 1024
-                    if path.endswith('.png') and file_size > 10:
-                        cprint('[WARNING] Large PNG file detected (>10KB). '
-                               'Consider optimizing with https://compressor.io',
-                               color=Color.YELLOW)
-                        cprint('  {} ({:.1f}KB)'.format(rel_path, file_size), color=Color.YELLOW)
-                    if path.endswith('.gif') and file_size > 100:
-                        cprint('[WARNING] Large GIF file detected (>100KB). '
-                               'Consider optimizing with https://ezgif.com/optimize',
-                               color=Color.YELLOW)
-                        cprint('  {} ({:.1f}KB)'.format(rel_path, file_size), color=Color.YELLOW)
-                    statement = statement.replace(os.path.join('attachments', item), rel_path)
-            with open(destination_file, 'w') as fp:
+                    if path.endswith(".png") and file_size > 10:
+                        cprint(
+                            "[WARNING] Large PNG file detected (>10KB). "
+                            "Consider optimizing with https://compressor.io",
+                            color=Color.YELLOW,
+                        )
+                        cprint("  {} ({:.1f}KB)".format(rel_path, file_size), color=Color.YELLOW)
+                    if path.endswith(".gif") and file_size > 100:
+                        cprint(
+                            "[WARNING] Large GIF file detected (>100KB). "
+                            "Consider optimizing with https://ezgif.com/optimize",
+                            color=Color.YELLOW,
+                        )
+                        cprint("  {} ({:.1f}KB)".format(rel_path, file_size), color=Color.YELLOW)
+                    statement = statement.replace(os.path.join("attachments", item), rel_path)
+            with open(destination_file, "w") as fp:
                 fp.write(statement)
             shutil.copy2(destination_file, destination_file_prev)
 
     def validate_jupyter(self):
         required_files = [
-            'solution.ipynb',
-            'dumper.py',
+            "solution.ipynb",
+            "dumper.py",
         ]
-        is_valid, message = True, 'OK'
+        is_valid, message = True, "OK"
 
         for rf in required_files:
             rf_path = os.path.join(self.SRC_DIR, rf)
@@ -327,34 +320,36 @@ class Builder:
 
     def build(self, is_jupyter_problem=False):
         # initial checks
-        cprint('Performing initial checks...', color=Color.CYAN)
+        cprint("Performing initial checks...", color=Color.CYAN)
         if not os.path.isdir(self.SRC_DIR):
             cprint('Directory "src" not found!', color=Color.RED)
             return
-        if not os.path.isfile(os.path.join(self.BASE_DIR, 'tester_config.json')):
+        if not os.path.isfile(os.path.join(self.BASE_DIR, "tester_config.json")):
             cprint('"tester_config.json" not found!', color=Color.RED)
             return
-        if not os.path.isfile(os.path.join(self.BASE_DIR, 'valid_files')):
+        if not os.path.isfile(os.path.join(self.BASE_DIR, "valid_files")):
             cprint('"valid_files" not found!', color=Color.RED)
             return
-        if not os.path.isdir(os.path.join(self.BASE_DIR, '.git')):
-            cprint('This is not a git repo!', color=Color.RED)
+        if not os.path.isdir(os.path.join(self.BASE_DIR, ".git")):
+            cprint("This is not a git repo!", color=Color.RED)
             return
         if is_jupyter_problem:
             is_valid, message = self.validate_jupyter()
             if not is_valid:
                 cprint(message, color=Color.RED)
                 return
-        if not os.path.isfile(os.path.join(self.SRC_DIR, '.qtest')):
+        if not os.path.isfile(os.path.join(self.SRC_DIR, ".qtest")):
             cprint('[WARNING] "src/.qtest" not found! Did you forget it?', color=Color.YELLOW)
         else:
-            with open(os.path.join(self.SRC_DIR, '.qtest')) as fp:
+            with open(os.path.join(self.SRC_DIR, ".qtest")) as fp:
                 if not fp.read().strip():
                     cprint('[WARNING] "src/.qtest" is empty! Did you forget it?', color=Color.YELLOW)
-        with open(os.path.join(self.BASE_DIR, 'tester_config.json')) as fp:
-            if 'solution_signature' not in fp.read():
-                cprint('[WARNING] "solution_signature" is missing from tester_config.json! Did you forget it?',
-                       color=Color.YELLOW)
+        with open(os.path.join(self.BASE_DIR, "tester_config.json")) as fp:
+            if "solution_signature" not in fp.read():
+                cprint(
+                    '[WARNING] "solution_signature" is missing from tester_config.json! Did you forget it?',
+                    color=Color.YELLOW,
+                )
 
         # copy src (except ignored files) to self.SRC_DIR_2 (dist/_copy__src)
         if os.path.exists(self.DIST):
@@ -371,33 +366,33 @@ class Builder:
 
         for export in self.EXPORTS:
             name = self.get_export_name(export)
-            cprint('\nBuilding {}'.format(name), color=Color.CYAN)
+            cprint("\nBuilding {}".format(name), color=Color.CYAN)
             path = self.get_export_path(export)
             shutil.copytree(self.SRC_DIR_2, path)
-            if export['hide_solution']:
-                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='replace')  # must be first
+            if export["hide_solution"]:
+                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action="replace")  # must be first
                 self.hide_ignorefile(path, self.QSOLUTION_FILES)
             else:
-                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action='delete')  # must be first
-            if export['hide_test']:
-                self.process_initial(path, self.NOTEST_EXTENSIONS, action='replace')  # must be first
+                self.process_initial(path, self.NOSOLUTION_EXTENSIONS, action="delete")  # must be first
+            if export["hide_test"]:
+                self.process_initial(path, self.NOTEST_EXTENSIONS, action="replace")  # must be first
                 self.hide_ignorefile(path, self.QTEST_FILES)
             else:
-                self.process_initial(path, self.NOTEST_EXTENSIONS, action='delete')  # must be first
-                shutil.copy2(os.path.join(self.BASE_DIR, 'tester_config.json'), path)
-                shutil.copy2(os.path.join(self.BASE_DIR, 'valid_files'), path)
-            if export['hide_solution']:
-                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show='replacement')
+                self.process_initial(path, self.NOTEST_EXTENSIONS, action="delete")  # must be first
+                shutil.copy2(os.path.join(self.BASE_DIR, "tester_config.json"), path)
+                shutil.copy2(os.path.join(self.BASE_DIR, "valid_files"), path)
+            if export["hide_solution"]:
+                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show="replacement")
             else:
-                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show='main')
-            if export['hide_test']:
-                self.process_comments(path, self.TEST_COMMENT_BEGIN, show='replacement')
+                self.process_comments(path, self.SOLUTION_COMMENT_BEGIN, show="main")
+            if export["hide_test"]:
+                self.process_comments(path, self.TEST_COMMENT_BEGIN, show="replacement")
             else:
-                self.process_comments(path, self.TEST_COMMENT_BEGIN, show='main')
-            if export['hide_sampletest']:
+                self.process_comments(path, self.TEST_COMMENT_BEGIN, show="main")
+            if export["hide_sampletest"]:
                 self.hide_ignorefile(path, self.QSAMPLETEST_FILES)
             self.run_qrun(path, export)
-            if export['hide_dotq_files']:
+            if export["hide_dotq_files"]:
                 for i in self.DOTQ_FILES:
                     try:
                         os.remove(os.path.join(path, i))
@@ -405,61 +400,64 @@ class Builder:
                         pass
             self.delete_gitignore_files(path)
             self.process_package_json(path, export)
-            cprint('Creating {}.zip'.format(name), color=Color.CYAN)
-            shutil.make_archive(path, 'zip', path)
+            cprint("Creating {}.zip".format(name), color=Color.CYAN)
+            shutil.make_archive(path, "zip", path)
 
             # export jupyter nonquera
-            if is_jupyter_problem and export.get('code') == 'initial':
+            if is_jupyter_problem and export.get("code") == "initial":
                 from qbuild_jupyter import converter as jupyter_converter
-                cprint(f'\nBuilding jupyter nonquera initial for {name}', color=Color.CYAN)
-                nonquera_extract_dir_path, nonquera_extract_zip_path = jupyter_converter.convert_initial_to_nonquera_in_path(
-                    path=path,
-                    mode='dir',
-                    nonquera_dir=self.DIST
-                )
+
+                cprint(f"\nBuilding jupyter nonquera initial for {name}", color=Color.CYAN)
+                (
+                    nonquera_extract_dir_path,
+                    nonquera_extract_zip_path,
+                ) = jupyter_converter.convert_initial_to_nonquera_in_path(path=path, mode="dir", nonquera_dir=self.DIST)
                 nonquera_zip_name = os.path.basename(nonquera_extract_zip_path)
-                cprint(f'Jupyter nonquera initial was successful: {nonquera_zip_name}', color=Color.CYAN)
+                cprint(f"Jupyter nonquera initial was successful: {nonquera_zip_name}", color=Color.CYAN)
 
         shutil.rmtree(self.SRC_DIR_2)
 
-        cprint('\nRendering statement', color=Color.CYAN)
+        cprint("\nRendering statement", color=Color.CYAN)
         self.render_statement()
 
-        cprint('\nBuild was successful!\n', color=Color.GREEN)
+        cprint("\nBuild was successful!\n", color=Color.GREEN)
 
     def diff(self):
         os.system(
-            'git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ '
-            'dist/{initial_name} dist/{model_solution_name} | '
+            "git diff --color --no-index  --src-prefix=INITIAL/ --dst-prefix=MODEL_SOLUTION/ "
+            "dist/{initial_name} dist/{model_solution_name} | "
             'sed --expression="s/INITIAL\/dist\/{initial_name}\///g" | '
             'sed --expression="s/MODEL_SOLUTION\/dist\/{model_solution_name}\///g" | '
             'sed --expression="s/dist\/{initial_name}\///g" | '
             'sed --expression="s/dist\/{model_solution_name}\///g" | '
-            'qbuild_diff-so-fancy | '
-            'less --tabs=4 -RFX'.format(initial_name=self.get_export_name(self.EXPORT_INITIAL),
-                                        model_solution_name=self.get_export_name(self.EXPORT_MODEL_SOLUTION))
+            "qbuild_diff-so-fancy | "
+            "less --tabs=4 -RFX".format(
+                initial_name=self.get_export_name(self.EXPORT_INITIAL),
+                model_solution_name=self.get_export_name(self.EXPORT_MODEL_SOLUTION),
+            )
         )
 
     def main(self):
-        if len(sys.argv) == 2 and sys.argv[1] == '--version':
+        if len(sys.argv) == 2 and sys.argv[1] == "--version":
             from qbuild import version
+
             print(version.__version__)
-        elif len(sys.argv) == 2 and sys.argv[1] == 'diff':
+        elif len(sys.argv) == 2 and sys.argv[1] == "diff":
             if not self.is_built():
-                cprint('\nChallenge is not built. Run `qbuild` first.\n', color=Color.YELLOW)
+                cprint("\nChallenge is not built. Run `qbuild` first.\n", color=Color.YELLOW)
             else:
                 self.diff()
-        elif len(sys.argv) == 3 and sys.argv[1] == 'tree':
+        elif len(sys.argv) == 3 and sys.argv[1] == "tree":
             print(tree(sys.argv[2]))
-        elif len(sys.argv) == 2 and sys.argv[1] == '--jupyter':
+        elif len(sys.argv) == 2 and sys.argv[1] == "--jupyter":
             try:
                 from qbuild_jupyter import converter as jupyter_converter
+
                 self.build(is_jupyter_problem=True)
             except ModuleNotFoundError:
                 cprint(
-                    '\n`qbuild-jupyter` is not installed yet. please install it with this command:\n'
-                    '        pip3 install git+ssh://git@gitlab.com/codamooz/challenges/qbuild-jupyter\n',
-                    color=Color.RED
+                    "\n`qbuild-jupyter` is not installed yet. Please install it.",
+                    color=Color.RED,
                 )
         else:
             self.build(is_jupyter_problem=False)

@@ -1,38 +1,31 @@
-*qbuild* is a build system for our technology challenges.
+*qbuild* is a build system for Quera technology challenges.
+
+[![PyPI](https://img.shields.io/pypi/v/qbuild)](https://pypi.org/project/qbuild/)
+[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 # Installation
 
-For installing or updating qbuild, run the following commands:
+For installing qbuild, run the following command:
 
 ```bash
-$ git clone git@gitlab.com:codamooz/challenges/qbuild.git
-$ cd qbuild
-$ sudo pip3 install . 
+$ sudo pip install qbuild 
 ```
-
-If you have a problem with pulling `qbuild-jupyter` dependency, run the following commands:
-
-```bash
-$ git clone git@gitlab.com:codamooz/challenges/qbuild-jupyter.git
-$ cd qbuild-jupyter
-$ sudo pip3 install . 
-``` 
 
 # Challenge Structure
 
 ```
 challenge-name (git repo)
 ├── src
-│   ├── [ ... source and test files ... ]
-│   ├── .gitignore (optional)
-│   ├── .qignore (optional)
-│   ├── .qsolution (optional)
-│   ├── .qtest (optional, BUT USUALLY NEEDED)
-│   └── .qrun.py (optional)
+│   ├── [ ... source and test files ... ]
+│   ├── .gitignore (optional)
+│   ├── .qignore (optional)
+│   ├── .qsolution (optional)
+│   ├── .qtest (optional, BUT USUALLY NEEDED)
+│   └── .qrun.py (optional)
 ├── statement
-│   ├── attachments
-│   │   └── [ ... image files ... ]
-│   └── statement.md
+│   ├── attachments
+│   │   └── [ ... image files ... ]
+│   └── statement.md
 ├── .gitignore
 ├── README.md  (generated from statement/statement.md, DO NOT EDIT)
 ├── tester_config.json
@@ -93,8 +86,8 @@ Prints currently installed version.
 ```
 statement
 ├── attachments
-│   ├── image1.png
-│   └── image2.png
+│   ├── image1.png
+│   └── image2.png
 └── statement.md
 ```
 
