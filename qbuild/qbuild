@@ -7,10 +7,25 @@ import shutil
 from collections import OrderedDict
 from fnmatch import fnmatchcase
 import sh
+from uuid import uuid4
 from jinja2 import Environment, TemplateNotFound
 from qbuild.color_print import Color, cprint
 from qbuild.helpers import ls_recursive, load_statement_templates, uncomment, get_comment_style
 from qbuild.tree import tree
+
+
+def create_file_in_all_empty_directories(path, file_name=None):
+    if file_name is None:
+        file_name = f"{uuid4().hex}.to_be_deleted_file"
+
+    created_files = []
+    for d in ls_recursive(path, only_dirs=True):
+        if not os.listdir(d):
+            file_path = os.path.join(d, file_name)
+            open(os.path.join(d, file_name), "w").close()
+            created_files.append(file_path)
+
+    return created_files
 
 
 class Builder:
@@ -150,11 +165,14 @@ class Builder:
             except FileNotFoundError:
                 pass
             os.rename(os.path.join(path, ignorefile), os.path.join(path, ".gitignore"))
+            to_be_deleted_files = create_file_in_all_empty_directories(path)
             sh.git.init(_cwd=path)
             sh.git.add(".", _cwd=path)
             sh.git.clean("-xdf", _cwd=path)
             shutil.rmtree(os.path.join(path, ".git"))
             os.remove(os.path.join(path, ".gitignore"))
+            for f in to_be_deleted_files:
+                os.remove(f)
 
     @staticmethod
     def run_qrun(path, export):
@@ -363,6 +381,10 @@ class Builder:
             if not os.path.exists(d):
                 os.makedirs(d)
             shutil.copy2(os.path.join(self.SRC_DIR, item), d)
+        for d in ls_recursive(self.SRC_DIR, relative=True, exclude_gitignore=True, only_dirs=True):
+            d_copy_path = os.path.join(self.SRC_DIR_2, d)
+            if not os.path.exists(d_copy_path):
+                os.makedirs(d_copy_path)
 
         for export in self.EXPORTS:
             name = self.get_export_name(export)

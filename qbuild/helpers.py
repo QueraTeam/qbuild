@@ -31,36 +31,51 @@ def is_ignored_by_gitignore(path):
         return False
 
 
-def _list_unignored(base_dir, only_files, path):
-    base, dirs, files = next(os.walk(path))
-    for f in files:
-        ff = os.path.join(base, f)
-        if f == ".gitignore":
-            yield ff
-        elif not is_ignored_by_gitignore(ff):
-            yield ff
-    for d in dirs:
-        if d == ".git":
+def _list_dirs(path):
+    for base, _, _ in os.walk(path):
+        if base == path:
             continue
-        dd = os.path.join(base, d)
-        if not is_ignored_by_gitignore(dd):
+        if "/.git/" in os.path.normpath(base) + "/":
+            continue
+        yield base
+
+
+def _list_unignored(base_dir, only_files, only_dirs, path):
+    if only_dirs:
+        yield from _list_dirs(path)
+    else:
+        base, dirs, files = next(os.walk(path))
+        for f in files:
+            ff = os.path.join(base, f)
+            if f == ".gitignore":
+                yield ff
+            elif not is_ignored_by_gitignore(ff):
+                yield ff
+        for d in dirs:
+            if d == ".git":
+                continue
+            dd = os.path.join(base, d)
+            if not is_ignored_by_gitignore(dd):
+                if not only_files:
+                    yield dd
+                yield from _list_unignored(base_dir, only_files, only_dirs, dd)
+
+
+def _list_all(path, only_files, only_dirs):
+    if only_dirs:
+        yield from _list_dirs(path)
+    else:
+        for base, dirnames, filenames in os.walk(path):
+            for filename in filenames:
+                yield os.path.join(base, filename)
             if not only_files:
-                yield dd
-            yield from _list_unignored(base_dir, only_files, dd)
+                for dirname in dirnames:
+                    if dirname == ".git":
+                        continue
+                    yield os.path.join(base, dirname)
 
 
-def _list_all(path, only_files):
-    for base, dirnames, filenames in os.walk(path):
-        for filename in filenames:
-            yield os.path.join(base, filename)
-        if not only_files:
-            for dirname in dirnames:
-                if dirname == ".git":
-                    continue
-                yield os.path.join(base, dirname)
-
-
-def ls_recursive(path, relative=False, exclude_gitignore=False, only_files=False):
+def ls_recursive(path, relative=False, exclude_gitignore=False, only_files=False, only_dirs=False):
     """
     Always skips .git folder
     :param path: The path to list files (or dirs) inside it
@@ -68,14 +83,18 @@ def ls_recursive(path, relative=False, exclude_gitignore=False, only_files=False
     :param exclude_gitignore:  If True, only paths that are not ignored by .gitignore files will be returned.
                                In this case, `path` must be inside a git repo.
     :param only_files: If True, only files will be returned (skips directories)
+    :param only_dirs: If True, only directories will be returned (skips files)
     :return: A list of paths inside `path`
     """
+    if only_dirs and only_files:
+        raise Exception("Only one of `only_dirs` and `only_files` can be True")
     if exclude_gitignore:
         if not is_inside_git_repo(path):
             raise NotGitRepoException
-        absolute_paths = list(_list_unignored(path, only_files, path))
+
+        absolute_paths = list(_list_unignored(path, only_files, only_dirs, path))
     else:
-        absolute_paths = list(_list_all(path, only_files))
+        absolute_paths = list(_list_all(path, only_files, only_dirs))
     if relative:
         return [os.path.relpath(i, start=path) for i in absolute_paths]
     else:
@@ -94,7 +113,7 @@ def get_comment_style(commented_line, scb):
         raise Exception
     ss, ff = comment_parts[0].lstrip(), comment_parts[1].rstrip()
     s, f = ss.rstrip(), ff.lstrip()
-    return [s, ss[len(s) :], ff[: -len(f)], f]
+    return [s, ss[len(s):], ff[: -len(f)], f]
 
 
 def uncomment(commented_line, comment_style):
