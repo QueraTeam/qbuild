@@ -3,11 +3,11 @@ import filecmp
 import json
 import os
 import shutil
+import subprocess
 import sys
 from collections import OrderedDict
 from fnmatch import fnmatchcase
 
-import sh
 from jinja2 import Environment, TemplateNotFound
 
 from qbuild.color_print import Color, cprint
@@ -152,9 +152,9 @@ class Builder:
             except FileNotFoundError:
                 pass
             os.rename(os.path.join(path, ignorefile), os.path.join(path, ".gitignore"))
-            sh.git.init(_cwd=path)
-            sh.git.add(".", _cwd=path)
-            sh.git.clean("-xdf", _cwd=path)
+            subprocess.run(["git", "init"], cwd=path, capture_output=True)
+            subprocess.run(["git", "add", "."], cwd=path, capture_output=True)
+            subprocess.run(["git", "clean", "-xdf"], cwd=path, capture_output=True)
             shutil.rmtree(os.path.join(path, ".git"))
             os.remove(os.path.join(path, ".gitignore"))
 
@@ -169,7 +169,7 @@ class Builder:
             args.append("--hide-test")
         if export["hide_sampletest"]:
             args.append("--hide-sampletest")
-        sh.python(".qrun.py", *args, _cwd=path)
+        subprocess.run(["python", ".qrun.py", *args], cwd=path, capture_output=True)
 
     def get_export_name(self, export):
         return export["export_name"].format(slug=self.SLUG)

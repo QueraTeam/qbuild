@@ -1,7 +1,6 @@
 import os
 import re
-
-import sh
+import subprocess
 
 
 class NotGitRepoException(Exception):
@@ -16,19 +15,15 @@ def _get_cwd(path):
 
 
 def is_inside_git_repo(path):
-    try:
-        sh.git("status", _cwd=_get_cwd(path))
-        return True
-    except sh.ErrorReturnCode_128:
-        return False
+    git_status_result = subprocess.run(["git", "status"], cwd=_get_cwd(path), capture_output=True)
+    return git_status_result.returncode != 128
 
 
 def is_ignored_by_gitignore(path):
-    try:
-        sh.git("check-ignore", "--no-index", "-q", path, _cwd=_get_cwd(path))
-        return True
-    except sh.ErrorReturnCode_1:
-        return False
+    git_check_ignore_result = subprocess.run(
+        ["git", "check-ignore", "--no-index", "-q", path], cwd=_get_cwd(path), capture_output=True
+    )
+    return git_check_ignore_result.returncode != 1
 
 
 def _list_unignored(base_dir, only_files, path):

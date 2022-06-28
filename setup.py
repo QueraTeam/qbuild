@@ -21,7 +21,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     scripts=["qbuild/qbuild", "qbuild/qbuild_diff-so-fancy"],
-    install_requires=["sh", "Jinja2"],
+    install_requires=["Jinja2"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
