@@ -1,6 +1,8 @@
 import os
+
+from setuptools import find_packages, setup
+
 from qbuild import version
-from setuptools import setup, find_packages
 
 with open(os.path.join(os.path.dirname(__file__), "README.md"), "r", encoding="UTF-8") as readme:
     README = readme.read()

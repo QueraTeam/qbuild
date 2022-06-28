@@ -2,14 +2,16 @@
 import filecmp
 import json
 import os
-import sys
 import shutil
+import sys
 from collections import OrderedDict
 from fnmatch import fnmatchcase
+
 import sh
 from jinja2 import Environment, TemplateNotFound
+
 from qbuild.color_print import Color, cprint
-from qbuild.helpers import ls_recursive, load_statement_templates, uncomment, get_comment_style
+from qbuild.helpers import get_comment_style, load_statement_templates, ls_recursive, uncomment
 from qbuild.tree import tree
 
 
